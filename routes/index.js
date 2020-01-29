@@ -3,6 +3,7 @@ var router = express.Router();
 
 var ProductSchema = require('../Models/product');
 var UserSchema = require('../Models/user');
+var OrderSchema = require('../Models/order');
 
 // const products = [
 //   {
@@ -106,8 +107,12 @@ router.post('/addProduct', async function(req, res) {
 
 router.get('/dataHeaderPanier', async function(req, res) {
     await UserSchema.findOne({token: req.query.userToken}).populate('panier').exec(function(err, user) {
-      res.json({result: user})      
-      });
+      if(user) {
+        res.json({result: user})      
+      } else {
+        res.json({result: false})      
+      }
+    });
 })
 
 
@@ -126,20 +131,44 @@ router.post('/deleteProduct', async function(req, res) {
 
 router.post('/addAddress', async function(req, res) {
     await UserSchema.findOne({token: req.body.userToken}, function(err, user) {
-      console.log('MY user', user)
-      console.log('My error', err)
       if(user) {
-        user.fullAddress = {
+        user.homeAddress = {
           address : req.body.address,
           city : req.body.city,
           zipCode : req.body.zipCode
         }
-        
          user.save()
-
          res.json({result: user})
       }
-        
     })
+})
+
+
+router.post('/createOrder', async function(req, res) {
+  await UserSchema.findOne({token : req.body.userToken}, async function(err, user) {
+    if(user) {
+      var newOrder = await new OrderSchema({
+        user : user._id,
+        products : req.body.orderProducts,
+        cost : req.body.totalOrder,
+        delivery_address : req.body.orderAddress,
+        delivery_city : req.body.orderCity,
+        delivery_zipCode : req.body.orderZipCode,
+        date_insert : new Date(),
+      })
+      await newOrder.save();
+    
+      await user.orders.push(newOrder._id);
+      await user.panier.splice(0, user.panier.length);
+      await user.save();
+    
+      console.log(newOrder);
+    
+      res.json({result: true});
+    }
+  });
+  
+  
+
 })
 module.exports = router;
