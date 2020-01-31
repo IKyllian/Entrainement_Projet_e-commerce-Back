@@ -108,6 +108,7 @@ router.post('/addProduct', async function(req, res) {
 router.get('/dataHeaderPanier', async function(req, res) {
     await UserSchema.findOne({token: req.query.userToken}).populate('panier').exec(function(err, user) {
       if(user) {
+        console.log(user)
         res.json({result: user})      
       } else {
         res.json({result: false})      
@@ -123,22 +124,35 @@ router.get('/getUserPanier', async function(req, res) {
 })
 
 router.post('/deleteProduct', async function(req, res) {
-    await UserSchema.findOne({token: req.body.userToken}, function(err, user) {
+    await UserSchema.findOne({token: req.body.userToken}).populate('panier').exec(function(err, user) {
       user.panier.splice(req.body.positionProduct, 1);
       user.save()
+      res.json({result : user});
     })
 })
 
 router.post('/addAddress', async function(req, res) {
     await UserSchema.findOne({token: req.body.userToken}, function(err, user) {
       if(user) {
-        user.homeAddress = {
-          address : req.body.address,
-          city : req.body.city,
-          zipCode : req.body.zipCode
+        var isHomeAddress;
+        if(!user.homeAddress){
+          isHomeAddress = true;
+          user.homeAddress = {
+            address : req.body.address,
+            city : req.body.city,
+            zipCode : req.body.zipCode
+          }
+        } else if(user.homeAddress || !user.secondaryAddress) {
+          isHomeAddress = false;
+          user.secondaryAddress = {
+            address : req.body.address,
+            city : req.body.city,
+            zipCode : req.body.zipCode
+          }
         }
+          
          user.save()
-         res.json({result: user})
+         res.json({addHomeAddress : isHomeAddress,result: user})
       }
     })
 })
