@@ -98,28 +98,49 @@ router.get('/product', async function(req, res) {
 })
 
 router.post('/addProduct', async function(req, res) {
-  await UserSchema.findOne({token: req.body.userToken}, function(err, user) {
-    //Push l'id du produit dans le tableau panier du user
-    user.panier.push(req.body.idProduct);
-    user.save();
+    await UserSchema.findOne({token: req.body.userToken}, function(err, user) {
+      //Push l'id du produit dans le tableau panier du user
+      if(user) {
+        user.panier.push(req.body.idProduct);
+        user.save();
+      }
+    })
+})
+
+router.get('/addProductCookie', async function(req, res) {
+  await ProductSchema.findOne({_id: req.query.idProduct}, function(err, product) {
+    if(product) {
+      if(!req.cookies.cartNotConnected) {
+        res.cookie('cartNotConnected', {panier : [{name : product.name, price : product.price, type : product.type, images : product.images}], panierId: [req.query.idProduct]},
+          {path:'/'}).send('Ok.');
+      } else {
+        req.cookies.cartNotConnected.panier.push({name : product.name, price : product.price, type : product.type, images : product.images});
+        req.cookies.cartNotConnected.panierId.push(req.query.idProduct);
+        res.cookie('cartNotConnected', {panier : req.cookies.cartNotConnected.panier},
+          {path:'/'}).send('Ok.');
+      }  
+    }
   })
 })
 
 router.get('/dataHeaderPanier', async function(req, res) {
-    await UserSchema.findOne({token: req.query.userToken}).populate('panier').exec(function(err, user) {
+    await UserSchema.findOne({token: req.query.userToken}).populate('panier').exec(async function(err, user) {
       if(user) {
-        console.log(user)
-        res.json({result: user})      
+        res.json({result: user})
       } else {
-        res.json({result: false})      
+        res.json({cookie: req.cookies.cartNotConnected})   ;   
       }
     });
+  
 })
 
-
 router.get('/getUserPanier', async function(req, res) {
-  await await UserSchema.findOne({token: req.query.userToken}).populate('panier').exec(function(err, datas) {
-    res.json({result: datas})
+  await UserSchema.findOne({token: req.query.userToken}).populate('panier').exec(function(err, userDatas) {
+    if(userDatas) {
+      res.json({result: userDatas});
+    } else {
+      res.json({cookie: req.cookies.cartNotConnected});
+    }
   })
 })
 
@@ -158,7 +179,7 @@ router.post('/addAddress', async function(req, res) {
 })
 
 
-router.post('/createOrder', async function(req, res) {
+router.post('/orderConfirm', async function(req, res) {
   await UserSchema.findOne({token : req.body.userToken}, async function(err, user) {
     if(user) {
       var newOrder = await new OrderSchema({
@@ -177,12 +198,40 @@ router.post('/createOrder', async function(req, res) {
       await user.save();
     
       console.log(newOrder);
-    
+
+      res.clearCookie('orderCart', {path:'/'});
+      res.clearCookie('orderAddress', {path:'/'})
+
       res.json({result: true});
     }
   });
-  
-  
+})
 
+router.post('/createOrderCart', function(req, res) {
+  res.cookie('orderCart', { 
+    products : req.body.products,
+    totalProductsPrice: req.body.totalProductsPrice,
+    totalDeliveryPrice: req.body.totalDeliveryPrice,
+    totalOrder : req.body.totalOrder
+  }, {expires : new Date(Date.now() + 24 * 3600000), path:'/'}).status(200).send('Ok.');
+
+})
+
+router.post('/createOrderAddress', function(req, res) {
+  res.cookie('orderAddress', { 
+    address : req.body.address,
+    city: req.body.city,
+    zipCode: req.body.zipCode,
+  }, {expires : new Date(Date.now() + 24 * 3600000), path:'/'}).status(200).send('Ok.');
+})
+
+router.get('/getCookiesOrder', function(req, res) {
+  if(req.cookies.orderCart && !req.cookies.orderAddress) {
+    res.json({result : true, cartCookies : req.cookies.orderCart})
+  } else if(req.cookies.orderCart && req.cookies.orderAddress) {
+    res.json({result : true, cartCookies : req.cookies.orderCart, addressOrderCookies : req.cookies.orderAddress})
+  } else {
+    res.json({result : false})
+  }
 })
 module.exports = router;
