@@ -34,7 +34,11 @@ router.post('/signup', async function(req, res) {
       //Sauvegarde en bdd
       await newUser.save();
 
-      res.cookie('userToken', token, {path:'/'}).status(200);
+      if(req.body.stayConnected !== false) {
+        res.cookie('userToken', token, {path:'/'}).status(200);
+      } else {
+        req.session.userToken = token;
+      }
 
       //Renvoie les informations au front
       res.json({result: newUser, validLog: true});
@@ -49,17 +53,22 @@ router.get('/signin', async function(req, res) {
       if(hash === user.password) {
         //Renvoie les infos au front
         if(req.cookies.cartNotConnected) {
-          console.log('MY COOKIES', req.cookies.cartNotConnected)
           var mergeArrays = user.panier.concat(req.cookies.cartNotConnected.panierId)
-          console.log('My NEW array', mergeArrays)
           user.panier = mergeArrays;
           user.save();
           res.clearCookie('cartNotConnected', {path:'/'});
-          res.cookie('userToken', user.token, {path:'/'}).status(200);
+          if(req.query.stayConnected !== false) {
+            res.cookie('userToken', user.token, {path:'/'}).status(200);
+          } else {
+            req.session.userToken = user.token;
+          }
           res.json({userExist: true, user: user})
         } else {
-          console.log('Pas bon endroit');
-          res.cookie('userToken', user.token, {path:'/'}).status(200);
+          if(req.query.stayConnected !== false) {
+            res.cookie('userToken', user.token, {path:'/'}).status(200);
+          } else {
+            req.session.userToken = user.token;
+          }
           res.json({userExist: true, user: user})
         }
       } else {
@@ -75,7 +84,12 @@ router.get('/signin', async function(req, res) {
 })
 
 router.get('/checkUserConnected', async function(req, res) {
-  var checkUser = await UserSchema.findOne({token: req.cookies.userToken});
+  var checkUser;
+  if(req.cookies.userToken) {
+    checkUser = await UserSchema.findOne({token: req.cookies.userToken});
+  } else if(req.session.userToken) {
+    checkUser = await UserSchema.findOne({token: req.session.userToken});
+  }
   if(checkUser) {
     res.json({userConnected: true, user: checkUser});
   } else {

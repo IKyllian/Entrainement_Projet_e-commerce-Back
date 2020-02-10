@@ -1,11 +1,19 @@
 var express = require('express');
 var router = express.Router();
+var cloudinary = require('cloudinary');
 
-var ProductSchema = require('../Models/product');
-var UserSchema = require('../Models/user');
-var OrderSchema = require('../Models/order');
+var ProductModel = require('../Models/product');
+var UserModel = require('../Models/user');
+var OrderModel = require('../Models/order');
+var CommentModel = require('../Models/comment');
 
-// const products = [
+cloudinary.config({
+  cloud_name:'df7gmexsk',
+  api_key: 546224285817771,
+  api_secret:'RCQbomAFlDXCqiHiqlU1wueF3b8'
+});
+
+// const catalogueProducts = [
 //   {
 //     name : 'Faber-Castell 110088 Set de crayons de couleur Art & Graphic',
 //     description : 'Pour l\'artiste, ils sont un outil de travail représentatif, pour l\'esthète un objet de design décoratif : les coffrets élégants en bois teinté couleur wengé. L\'assortiment de base et les accessoires assortis se prêtent à chaque créatif comme outil de travail prestigieux. Un assortiment de base de crayons de couleur pour artistes et de pastels Polychromos, de crayons de couleur aquarellables Albrecht Dürer ainsi qu\'un petit assortiment de PITT Monochrome se présente sur deux niveaux',
@@ -70,15 +78,15 @@ router.get('/', function(req, res, next) {
 
 //Route qui permet d'inserer des produits en bdd
 // router.post('/addProducts', async function(req, res, next) {
-//   for(var i = 0; i < products.length; i++) {
-//     var newProduct = await new ProductSchema({
-//       name : products[i].name,
-//       description : products[i].description,
-//       price : products[i].prix,
-//       note : products[i].note,
-//       images : products[i].images,
-//       stock : products[i].stock,
-//       type : products[i].type
+//   for(var i = 0; i < catalogueProducts.length; i++) {
+//     var newProduct = await new ProductModel({
+//       name : catalogueProducts[i].name,
+//       description : catalogueProducts[i].description,
+//       price : catalogueProducts[i].prix,
+//       note : catalogueProducts[i].note,
+//       images : catalogueProducts[i].images,
+//       stock : catalogueProducts[i].stock,
+//       type : catalogueProducts[i].type
 //     })
 
 //     await newProduct.save();
@@ -87,18 +95,36 @@ router.get('/', function(req, res, next) {
 // })
 
 router.get('/getProducts', async function(req, res) {
-  var getProducts = await ProductSchema.find(); //Va chercher tous les produits en bdd
+  var getProducts = await ProductModel.find(); //Va chercher tous les produits en bdd
 
   res.json({products : getProducts}) //Renvoie les infos au front
 })
 
 router.get('/product', async function(req, res) {
-  var getProduct = await ProductSchema.findById({_id: req.query.id}) //Permet d'aller recuperer un produit grace a son id, que l'on recupere depuis le front
-  res.json({product : getProduct}) //Renvoie les infos au front
-})
+  //Permet d'aller recuperer un produit grace a son id, que l'on recupere depuis le front
+  //Nested Populate, permet d'aller recuperer les infortion sur user en passant par le model de commentaires
+  await ProductModel.findById({_id: req.query.id}).populate({path: 'comments', populate: { path: 'user', model : UserModel}}).exec(function(err, product) {
+    if(product) {
+      res.json({result : product}) //Renvoie les infos au front
+    }
+  }) 
+  // await ProductModel.findById({_id: req.query.id}, function(err, product) {
+  //   if(product) {
+  //     console.log(product)
+  //     CommentModel.populate({
+  //       select: 'user',
+  //       model: UserModel
+  //     }, function(err, result) {
+  //       console.log(result)
+  //     })
+  //     res.json({result : product}) //Renvoie les infos au front
+  //   }
+  // }) 
+ })
 
 router.post('/addProduct', async function(req, res) {
-    await UserSchema.findOne({token: req.body.userToken}, function(err, user) {
+  console.log('Execute')
+    await UserModel.findOne({token: req.body.userToken}, function(err, user) {
       //Push l'id du produit dans le tableau panier du user
       if(user) {
         user.panier.push(req.body.idProduct);
@@ -108,7 +134,7 @@ router.post('/addProduct', async function(req, res) {
 })
 
 router.get('/addProductCookie', async function(req, res) {
-  await ProductSchema.findOne({_id: req.query.idProduct}, function(err, product) {
+  await ProductModel.findOne({_id: req.query.idProduct}, function(err, product) {
     if(product) {
       if(!req.cookies.cartNotConnected) {
         res.cookie('cartNotConnected', {panier : [{name : product.name, price : product.price, type : product.type, images : product.images}], panierId: [req.query.idProduct]},
@@ -124,7 +150,7 @@ router.get('/addProductCookie', async function(req, res) {
 })
 
 router.get('/dataHeaderPanier', async function(req, res) {
-    await UserSchema.findOne({token: req.query.userToken}).populate('panier').exec(async function(err, user) {
+    await UserModel.findOne({token: req.query.userToken}).populate('panier').exec(async function(err, user) {
       if(user) {
         res.json({result: user})
       } else {
@@ -135,7 +161,7 @@ router.get('/dataHeaderPanier', async function(req, res) {
 })
 
 router.get('/getUserPanier', async function(req, res) {
-  await UserSchema.findOne({token: req.query.userToken}).populate('panier').exec(function(err, userDatas) {
+  await UserModel.findOne({token: req.query.userToken}).populate('panier').exec(function(err, userDatas) {
     if(userDatas) {
       res.json({result: userDatas});
     } else {
@@ -145,7 +171,7 @@ router.get('/getUserPanier', async function(req, res) {
 })
 
 router.post('/deleteProduct', async function(req, res) {
-    await UserSchema.findOne({token: req.body.userToken}).populate('panier').exec(function(err, user) {
+    await UserModel.findOne({token: req.body.userToken}).populate('panier').exec(function(err, user) {
       user.panier.splice(req.body.positionProduct, 1);
       user.save()
       res.json({result : user});
@@ -153,7 +179,7 @@ router.post('/deleteProduct', async function(req, res) {
 })
 
 router.post('/addAddress', async function(req, res) {
-    await UserSchema.findOne({token: req.body.userToken}, function(err, user) {
+    await UserModel.findOne({token: req.body.userToken}, function(err, user) {
       if(user) {
         var isHomeAddress;
         if(!user.homeAddress){
@@ -180,9 +206,9 @@ router.post('/addAddress', async function(req, res) {
 
 
 router.post('/orderConfirm', async function(req, res) {
-  await UserSchema.findOne({token : req.body.userToken}, async function(err, user) {
+  await UserModel.findOne({token : req.body.userToken}, async function(err, user) {
     if(user) {
-      var newOrder = await new OrderSchema({
+      var newOrder = await new OrderModel({
         user : user._id,
         products : req.body.orderProducts,
         cost : req.body.totalOrder,
@@ -234,4 +260,53 @@ router.get('/getCookiesOrder', function(req, res) {
     res.json({result : false})
   }
 })
+
+router.post('/addComment', async function(req, res) {
+  var idUser;
+  console.log(req.body.userToken)
+  var user = await UserModel.findOne({token: req.body.userToken});
+
+  // var randomName = Math.floor(Math.random() * 1000000)
+  // var photoPath = `public/images/picture-${randomName}.jpg`;;
+
+  // req.files.photo.mv(photoPath,
+  //   function(err) {
+  //     cloudinary.v2.uploader.upload(photoPath,
+  //       function(error, result){
+  //         if(result){
+
+  //           console.log('This the result -->',result)
+          
+  //         } else {
+
+  //           console.log('this is the error --->',error)
+  //           res.json({result: false, message: 'File not uploaded!'} );
+
+  //         }
+  //       })
+  // })
+
+
+  idUser = user._id;
+  await ProductModel.findOne({_id: req.body.idProduct}).populate({path: 'comments', populate: { path: 'user', model : UserModel}}).exec(async function(err, product) {
+    if(product) {
+      var newComment = await new CommentModel({
+        title: req.body.title,
+        message: req.body.message,
+        date: new Date(),
+        user : idUser,
+        note : req.body.note,
+        //images : req.body.images.thumbUrl
+      })
+
+      await newComment.save();
+      await product.comments.push(newComment._id);
+      await product.save()
+
+      res.json({result : product})
+    }
+  })
+})
+
+
 module.exports = router;
