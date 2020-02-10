@@ -13,7 +13,6 @@ router.get('/', function(req, res, next) {
 
 router.post('/signup', async function(req, res) {
     var checkUser = await UserSchema.findOne({email: req.body.email}); //Check si l'email existe en bdd
-    console.log(checkUser)
     //Si il trouve email en bdd, email not valid
     if(checkUser) {
       console.log('Email already exist');
@@ -35,7 +34,11 @@ router.post('/signup', async function(req, res) {
       //Sauvegarde en bdd
       await newUser.save();
 
-      res.cookie('userToken', token, {path:'/'});
+      if(req.body.stayConnected !== false) {
+        res.cookie('userToken', token, {path:'/'}).status(200);
+      } else {
+        req.session.userToken = token;
+      }
 
       //Renvoie les informations au front
       res.json({result: newUser, validLog: true});
@@ -49,7 +52,25 @@ router.get('/signin', async function(req, res) {
       var hash = SHA256(req.query.password + user.salt).toString(encBase64);
       if(hash === user.password) {
         //Renvoie les infos au front
-        res.json({userExist: true, userDatas: user})
+        if(req.cookies.cartNotConnected) {
+          var mergeArrays = user.panier.concat(req.cookies.cartNotConnected.panierId)
+          user.panier = mergeArrays;
+          user.save();
+          res.clearCookie('cartNotConnected', {path:'/'});
+          if(req.query.stayConnected !== false) {
+            res.cookie('userToken', user.token, {path:'/'}).status(200);
+          } else {
+            req.session.userToken = user.token;
+          }
+          res.json({userExist: true, user: user})
+        } else {
+          if(req.query.stayConnected !== false) {
+            res.cookie('userToken', user.token, {path:'/'}).status(200);
+          } else {
+            req.session.userToken = user.token;
+          }
+          res.json({userExist: true, user: user})
+        }
       } else {
         res.json({userExist: false})
       }
@@ -63,17 +84,22 @@ router.get('/signin', async function(req, res) {
 })
 
 router.get('/checkUserConnected', async function(req, res) {
-  var checkUser = await UserSchema.findOne({token: req.cookies.userToken});
+  var checkUser;
+  if(req.cookies.userToken) {
+    checkUser = await UserSchema.findOne({token: req.cookies.userToken});
+  } else if(req.session.userToken) {
+    checkUser = await UserSchema.findOne({token: req.session.userToken});
+  }
   if(checkUser) {
     res.json({userConnected: true, user: checkUser});
   } else {
-    res.json({userConnected: false});
+    res.json({userConnected: false, cartOnCookies : req.cookies.cartNotConnected});
   }
 })
 
 router.get('/logout', function(req, res) {
-  res.clearCookie('userToken');
-  //res.json({cookie: req.cookie.userToken})
+  res.clearCookie('userToken', {path:'/'}).send('Ok.');
 })
+
 
 module.exports = router;
