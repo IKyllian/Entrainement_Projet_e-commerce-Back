@@ -309,4 +309,41 @@ router.post('/addComment', async function(req, res) {
 })
 
 
+router.get('/getUserOrders', async function(req, res) {
+  await UserModel.findOne({token: req.query.userToken}).populate({path: 'orders', populate: {path: 'products', model : ProductModel}}).exec(function(err, user) {
+    console.log(user)
+    if(user) {
+      res.json({result: user});
+    }
+  })
+})
+
+router.post('/deleteAddress', async function(req, res) {
+    await UserModel.updateOne({token: req.body.userToken}, { $unset : req.body.addressNumber === 1 ? { homeAddress : 1} : { secondaryAddress : 1} });
+    await UserModel.findOne({token: req.body.userToken}, function(err, user) {
+      if(user) {
+        res.json({result : user});
+      }
+    })
+})
+
+router.post('/editAddress', async function(req, res) {
+  await UserModel.updateOne({token : req.body.userToken},
+    req.body.addressNumber === 1 ?
+      {homeAddress: {address : req.body.address, city : req.body.city, zipCode : req.body.zipCode}} :
+      {secondaryAddress: {address : req.body.address, city : req.body.city, zipCode : req.body.zipCode}}
+  )
+  await UserModel.findOne({token: req.body.userToken}, function(err, user) {
+    if(user) {
+      let wichAddress;
+      if(req.body.addressNumber === 1) {
+        wichAddress = 1;
+      } else {
+        wichAddress = 2;
+      }
+      res.json({result : user, wichAddress : wichAddress});
+    }
+  })
+})
+
 module.exports = router;
