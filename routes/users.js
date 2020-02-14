@@ -4,15 +4,15 @@ var uid2 = require("uid2");
 var SHA256 = require("crypto-js/sha256");
 var encBase64 = require("crypto-js/enc-base64");
 
-var UserSchema = require('../Models/user')
-
+var UserModel = require('../Models/user')
+var PanierModel = require('../Models/panier')
 /* GET users listing. */
 router.get('/', function(req, res, next) {
   res.send('respond with a resource');
 });
 
 router.post('/signup', async function(req, res) {
-    var checkUser = await UserSchema.findOne({email: req.body.email}); //Check si l'email existe en bdd
+    var checkUser = await UserModel.findOne({email: req.body.email}); //Check si l'email existe en bdd
     //Si il trouve email en bdd, email not valid
     if(checkUser) {
       console.log('Email already exist');
@@ -20,8 +20,19 @@ router.post('/signup', async function(req, res) {
     } else {
       var salt = uid2(32);
       var token = uid2(32);
+      var userPanier;
+      if(req.cookies.cartNotConnected) {
+        var panierCookie = await PanierModel.findOne({_id : req.cookies.cartNotConnected.panierId});
+        if(panierCookie) {
+          userPanier = panierCookie.products
+          await PanierModel.deleteOne({_id : req.cookies.cartNotConnected.panierId})
+          res.clearCookie('cartNotConnected', {path:'/'});
+        }
+      } else {
+        userPanier = undefined;
+      }
       //Création du user dans la bdd
-      var newUser = await new UserSchema({
+      var newUser = await new UserModel({
         first_name : req.body.first_name,
         last_name : req.body.last_name,
         email : req.body.email,
@@ -29,6 +40,7 @@ router.post('/signup', async function(req, res) {
         password : SHA256(req.body.password + salt).toString(encBase64), //Hashé le mot de passe 
         token : token,
         role : 'user',
+        panier : userPanier
       })
 
       //Sauvegarde en bdd
@@ -46,17 +58,24 @@ router.post('/signup', async function(req, res) {
 })
 
 router.get('/signin', async function(req, res) {
-  var checkUser = await UserSchema.findOne({email: req.query.email}, function(err, user) { //Check si l'email existe en bdd
+  var checkUser = await UserModel.findOne({email: req.query.email}, async function(err, user) { //Check si l'email existe en bdd
     if(user) {
       //Verification du mot de passe hashé 
       var hash = SHA256(req.query.password + user.salt).toString(encBase64);
       if(hash === user.password) {
-        //Renvoie les infos au front
+        //Permet de regarder si un panier a été crée avant la connexion
         if(req.cookies.cartNotConnected) {
-          var mergeArrays = user.panier.concat(req.cookies.cartNotConnected.panierId)
-          user.panier = mergeArrays;
-          user.save();
+          //Si oui, fusionne les deux paniers (panier dans avant connexion et panier du compte user)
+          //Puis supprime le panier en bdd et le cookie
+          var panierCookie = await PanierModel.findOne({_id : req.cookies.cartNotConnected.panierId});
+          if(panierCookie) {
+            var mergeArrays = user.panier.concat(panierCookie.products);
+            user.panier = mergeArrays;
+            user.save();
+          }
+          await PanierModel.deleteOne({_id : req.cookies.cartNotConnected.panierId})
           res.clearCookie('cartNotConnected', {path:'/'});
+          //Permet de savoir si le user veut rester connecter ou non
           if(req.query.stayConnected !== false) {
             res.cookie('userToken', user.token, {path:'/'}).status(200);
           } else {
@@ -64,6 +83,7 @@ router.get('/signin', async function(req, res) {
           }
           res.json({userExist: true, user: user})
         } else {
+          //Permet de savoir si le user veut rester connecter ou non
           if(req.query.stayConnected !== false) {
             res.cookie('userToken', user.token, {path:'/'}).status(200);
           } else {
@@ -86,14 +106,22 @@ router.get('/signin', async function(req, res) {
 router.get('/checkUserConnected', async function(req, res) {
   var checkUser;
   if(req.cookies.userToken) {
-    checkUser = await UserSchema.findOne({token: req.cookies.userToken});
+    checkUser = await UserModel.findOne({token: req.cookies.userToken}).populate('panier');
   } else if(req.session.userToken) {
-    checkUser = await UserSchema.findOne({token: req.session.userToken});
+    checkUser = await UserModel.findOne({token: req.session.userToken}).populate('panier');
   }
   if(checkUser) {
     res.json({userConnected: true, user: checkUser});
   } else {
-    res.json({userConnected: false, cartOnCookies : req.cookies.cartNotConnected});
+    if(req.cookies.cartNotConnected) {
+      await PanierModel.findOne({_id: req.cookies.cartNotConnected.panierId}).populate('products').exec(function(err, panier) {
+        if(panier) {
+          res.json({userConnected: false, cartOnCookies : panier});
+        }
+      })
+    } else {
+      res.json({userConnected: false, cartOnCookies : undefined});
+    }
   }
 })
 

@@ -6,6 +6,7 @@ var ProductModel = require('../Models/product');
 var UserModel = require('../Models/user');
 var OrderModel = require('../Models/order');
 var CommentModel = require('../Models/comment');
+var PanierModel = require('../Models/panier');
 
 cloudinary.config({
   cloud_name:'df7gmexsk',
@@ -129,21 +130,29 @@ router.post('/addProduct', async function(req, res) {
       if(user) {
         user.panier.push(req.body.idProduct);
         user.save();
+        res.status(200).send('ok')
       }
     })
 })
 
 router.get('/addProductCookie', async function(req, res) {
-  await ProductModel.findOne({_id: req.query.idProduct}, function(err, product) {
+  await ProductModel.findOne({_id: req.query.idProduct}, async function(err, product) {
     if(product) {
       if(!req.cookies.cartNotConnected) {
-        res.cookie('cartNotConnected', {panier : [{name : product.name, price : product.price, type : product.type, images : product.images}], panierId: [req.query.idProduct]},
+        var newPanier = await new PanierModel({
+          products: req.query.idProduct,
+        })
+        await newPanier.save()
+        res.cookie('cartNotConnected', {panierId: newPanier._id},
           {path:'/'}).send('Ok.');
       } else {
-        req.cookies.cartNotConnected.panier.push({name : product.name, price : product.price, type : product.type, images : product.images});
-        req.cookies.cartNotConnected.panierId.push(req.query.idProduct);
-        res.cookie('cartNotConnected', {panier : req.cookies.cartNotConnected.panier},
-          {path:'/'}).send('Ok.');
+        await PanierModel.findOne({_id: req.cookies.cartNotConnected.panierId}, function(err, panier){
+          if(panier) {
+            panier.products.push(req.query.idProduct);
+            panier.save()
+            res.status(200).send('ok')
+          }
+        })
       }  
     }
   })
@@ -154,27 +163,52 @@ router.get('/dataHeaderPanier', async function(req, res) {
       if(user) {
         res.json({result: user})
       } else {
-        res.json({cookie: req.cookies.cartNotConnected})   ;   
+        if(req.cookies.cartNotConnected) {
+          await PanierModel.findOne({_id : req.cookies.cartNotConnected.panierId}).populate('products').exec(function(err, panier){
+            if(panier) {
+              res.json({cookie: panier});   
+            }
+          })
+        } else {
+          res.json({response: false})
+        }
       }
     });
-  
 })
 
 router.get('/getUserPanier', async function(req, res) {
-  await UserModel.findOne({token: req.query.userToken}).populate('panier').exec(function(err, userDatas) {
+  await UserModel.findOne({token: req.query.userToken}).populate('panier').exec(async function(err, userDatas) {
     if(userDatas) {
       res.json({result: userDatas});
+    } else if(req.cookies.cartNotConnected) {
+      await PanierModel.findOne({_id : req.cookies.cartNotConnected.panierId}).populate('products').exec(function(err, panier){
+        if(panier) {
+          res.json({cookie: panier});   
+        }
+      })
     } else {
-      res.json({cookie: req.cookies.cartNotConnected});
+      res.json({response :false})
     }
   })
 })
 
 router.post('/deleteProduct', async function(req, res) {
-    await UserModel.findOne({token: req.body.userToken}).populate('panier').exec(function(err, user) {
-      user.panier.splice(req.body.positionProduct, 1);
-      user.save()
-      res.json({result : user});
+    await UserModel.findOne({token: req.body.userToken}).populate('panier').exec(async function(err, user) {
+      if(user) {
+        user.panier.splice(req.body.positionProduct, 1);
+        user.save()
+        res.json({result : user});
+      } else if(req.cookies.cartNotConnected) {
+        await PanierModel.findOne({_id: req.cookies.cartNotConnected.panierId}).populate('products').exec(function(err, panier) {
+          if(panier) {
+            panier.products.splice(req.body.positionProduct, 1);
+            panier.save()
+            res.json({resultCookie : panier});
+          }
+        })
+      } else {
+        res.json({response: false})
+      }
     })
 })
 
