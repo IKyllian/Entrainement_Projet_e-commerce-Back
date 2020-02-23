@@ -8,7 +8,8 @@ var productSchema = mongoose.Schema({
     images : [String],
     comments : [{type: mongoose.Schema.Types.ObjectId, ref: 'comments'}],
     stock : Number,
-    type : String
+    type : String,
+    soldNumber: Number
 })
 
 module.exports = mongoose.model('products', productSchema);

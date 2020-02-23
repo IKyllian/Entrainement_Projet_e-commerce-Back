@@ -92,14 +92,14 @@ router.get('/signin', async function(req, res) {
           res.json({userExist: true, user: user})
         }
       } else {
-        res.json({userExist: false})
+        res.json({userExist: false,  inputError: 'password'})
       }
     }
   }); 
   //Si l'email existe pas, Log incorrect
   if(!checkUser) {
     console.log('User not exist');
-    res.json({userExist: false})
+    res.json({userExist: false, inputError: 'email'})
   }
 })
 

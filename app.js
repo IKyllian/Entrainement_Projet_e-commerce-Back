@@ -1,5 +1,4 @@
 require('./Models/bdd');
-var fileUpload = require('express-fileupload');
 var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
@@ -11,7 +10,11 @@ var usersRouter = require('./routes/users');
 var cookieParser = (require('cookie-parser'))
 var cors = require('cors')
 var session = require("express-session");
+var bodyParser = require('body-parser')
+var fileUpload = require('express-fileupload');
+
 var app = express();
+app.use(bodyParser.json({ limit: '5mb' }))
 app.use(cors({credentials: true, origin: 'http://localhost:3001'}))
 app.use(
   session({ 
@@ -21,7 +24,7 @@ app.use(
   })
  );
 app.use(cookieParser());
-
+app.use(fileUpload());
 
 
 

@@ -19,6 +19,7 @@ var userSchema = mongoose.Schema({
    panier : [{type: mongoose.Schema.Types.ObjectId, ref: 'products'}],
    orders : [{type: mongoose.Schema.Types.ObjectId, ref: 'orders'}],
    ateliers : [{type: mongoose.Schema.Types.ObjectId, ref: 'ateliers'}],
+   comments : [{type: mongoose.Schema.Types.ObjectId, ref: 'comments'}],
 })
 
 module.exports = mongoose.model('users', userSchema);
