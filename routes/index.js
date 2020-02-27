@@ -32,8 +32,8 @@ const catalogueProducts = [
     prix: 160,
     note: 0,
     stock : 7,
-    images : ['https://images-na.ssl-images-amazon.com/images/I/91zXALacchL._AC_SX425_.jpg'],
-    type : 'crayon-couleur',
+    images : ['https://images.fr.shopping.rakuten.com/photo/Faber-Castell-Set-Crayons-Couleur-1035921657_L.jpg'],
+    type : 'crayons de couleur',
     soldNumber :0
   },
   {
@@ -83,7 +83,7 @@ const catalogueProducts = [
     note: '0',
     stock : '7',
     images: ['https://www.rougier-ple.fr/phproduct20140204/P_74950_P_1_PRODUIT.jpg'],
-    type : 'crayon-papier',
+    type : 'crayons à papier',
     soldNumber : 0
   },
 ]
@@ -144,13 +144,28 @@ router.get('/product', async function(req, res) {
 
 router.post('/addProduct', async function(req, res) {
   console.log('Execute')
-    await UserModel.findOne({token: req.body.userToken}, function(err, user) {
-      //Push l'id du produit dans le tableau panier du user
+    await UserModel.findOne({token: req.body.userToken}, async function(err, user) {
       if(user) {
-        let idProduct = req.body.idProduct
-        user.panier.push(idProduct);
-        user.save();
-        res.status(200).send('ok')
+        var productAlreadyExist = false;
+        var indexOfProduct;
+        for(var i = 0; i < user.panier.length; i++) {
+          if(user.panier[i] == req.body.idProduct) {
+            productAlreadyExist = true;
+            indexOfProduct = i;
+            break;
+          }
+        }
+
+        if(productAlreadyExist) {
+          var currentQuantity = user.productsQuantity[indexOfProduct]
+          await UserModel.updateOne({_id: user._id}, { $set : { [`productsQuantity.${indexOfProduct}`]: currentQuantity + 1 }});
+          res.json({productExist: true, indexProduct: indexOfProduct});
+        } else {
+          user.panier.push(req.body.idProduct);
+          user.productsQuantity.push(1);
+          user.save();
+          res.json({productExist: false})
+        }
       }
     })
 })
@@ -161,21 +176,50 @@ router.get('/addProductCookie', async function(req, res) {
       if(!req.cookies.cartNotConnected) {
         var newPanier = await new PanierModel({
           products: req.query.idProduct,
+          productsQuantity: [1]
         })
         await newPanier.save()
         res.cookie('cartNotConnected', {panierId: newPanier._id},
           {path:'/'}).send('Ok.');
       } else {
-        await PanierModel.findOne({_id: req.cookies.cartNotConnected.panierId}, function(err, panier){
+        await PanierModel.findOne({_id: req.cookies.cartNotConnected.panierId}, async function(err, panier){
           if(panier) {
-            panier.products.push(req.query.idProduct);
-            panier.save()
-            res.status(200).send('ok')
+            var productAlreadyExist = false;
+            var indexOfProduct;
+            for(var i = 0; i < panier.products.length; i++) {
+              if(panier.products[i] == req.query.idProduct) {
+                productAlreadyExist = true;
+                indexOfProduct = i;
+                break;
+              }
+            }
+
+            if(productAlreadyExist) {
+              var currentQuantity = panier.productsQuantity[indexOfProduct]
+              await PanierModel.updateOne({_id: panier._id}, { $set : { [`productsQuantity.${indexOfProduct}`]: currentQuantity + 1 }});
+              res.json({productExist: true, indexProduct: indexOfProduct});
+            } else {
+              panier.products.push(req.query.idProduct);
+              panier.productsQuantity.push(1);
+              panier.save();
+              res.json({productExist: false})
+            }
           }
         })
       }  
     }
   })
+})
+
+router.post('/changeProductQuantity', async function(req, res) {
+  if(req.body.userToken == undefined) {
+    if(req.cookies.cartNotConnected) {
+      await PanierModel.updateOne({_id: req.cookies.cartNotConnected.panierId}, { $set : {[`productsQuantity.${req.body.index}`]: req.body.value }});
+    }
+  } else {
+    await UserModel.updateOne({token: req.body.userToken}, { $set : {[`productsQuantity.${req.body.index}`]: req.body.value }});
+  }
+  res.json({result: true})
 })
 
 router.get('/dataHeaderPanier', async function(req, res) {
@@ -215,15 +259,29 @@ router.get('/getUserPanier', async function(req, res) {
 router.post('/deleteProduct', async function(req, res) {
     await UserModel.findOne({token: req.body.userToken}).populate('panier').exec(async function(err, user) {
       if(user) {
-        user.panier.splice(req.body.positionProduct, 1);
-        user.save()
-        res.json({result : user});
+        if(user.productsQuantity[req.body.positionProduct] <= 1) {
+          user.panier.splice(req.body.positionProduct, 1);
+          user.productsQuantity.splice(req.body.positionProduct, 1);
+          user.save()
+          res.json({result : user, productDelete: true});
+        } else {
+          var currentQuantity = user.productsQuantity[req.body.positionProduct]
+          await UserModel.updateOne({_id: user._id}, {$set : {[`productsQuantity.${req.body.positionProduct}`]: currentQuantity - 1 }});
+          res.json({result : user, productDelete: false});
+        }
       } else if(req.cookies.cartNotConnected) {
-        await PanierModel.findOne({_id: req.cookies.cartNotConnected.panierId}).populate('products').exec(function(err, panier) {
+        await PanierModel.findOne({_id: req.cookies.cartNotConnected.panierId}).populate('products').exec(async function(err, panier) {
           if(panier) {
-            panier.products.splice(req.body.positionProduct, 1);
-            panier.save()
-            res.json({resultCookie : panier});
+            if(panier.productsQuantity[req.body.positionProduct] <= 1) {
+              panier.products.splice(req.body.positionProduct, 1);
+              panier.productsQuantity.splice(req.body.positionProduct, 1);
+              panier.save()
+              res.json({resultCookie : panier, productDelete: true});
+            } else {
+              var currentQuantity = panier.productsQuantity[req.body.positionProduct]
+              await PanierModel.updateOne({_id: panier._id}, {$set : {[`productsQuantity.${req.body.positionProduct}`]: currentQuantity - 1 }});
+              res.json({resultCookie : panier, productDelete: false});
+            }
           }
         })
       } else {
@@ -261,6 +319,7 @@ router.post('/addAddress', async function(req, res) {
 router.post('/createOrderCart', function(req, res) {
   res.cookie('orderCart', { 
     products : req.body.products,
+    productsQuantity: req.body.productsQuantity,
     totalProductsPrice: req.body.totalProductsPrice,
     totalDeliveryPrice: req.body.totalDeliveryPrice,
     totalOrder : req.body.totalOrder
@@ -283,6 +342,7 @@ router.post('/orderConfirm', async function(req, res) {
       var newOrder = await new OrderModel({
         user : user._id,
         products : req.body.orderProducts,
+        productsQuantity : req.body.productsQuantity,
         cost : req.body.totalOrder,
         delivery_address : req.body.orderAddress,
         delivery_city : req.body.orderCity,
@@ -300,6 +360,7 @@ router.post('/orderConfirm', async function(req, res) {
     
       await user.orders.push(newOrder._id);
       await user.panier.splice(0, user.panier.length);
+      await user.productsQuantity.splice(0, user.productsQuantity.length);
       await user.save();
 
       res.clearCookie('orderCart', {path:'/'});

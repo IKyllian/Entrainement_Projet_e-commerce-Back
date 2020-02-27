@@ -24,8 +24,9 @@ router.post('/signup', async function(req, res) {
       if(req.cookies.cartNotConnected) {
         var panierCookie = await PanierModel.findOne({_id : req.cookies.cartNotConnected.panierId});
         if(panierCookie) {
-          userPanier = panierCookie.products
-          await PanierModel.deleteOne({_id : req.cookies.cartNotConnected.panierId})
+          userPanier = panierCookie.products;
+          userProductsQuantity = panierCookie.productsQuantity;
+          await PanierModel.deleteOne({_id : req.cookies.cartNotConnected.panierId});
           res.clearCookie('cartNotConnected', {path:'/'});
         }
       } else {
@@ -40,7 +41,8 @@ router.post('/signup', async function(req, res) {
         password : SHA256(req.body.password + salt).toString(encBase64), //Hashé le mot de passe 
         token : token,
         role : 'user',
-        panier : userPanier
+        panier : userPanier,
+        productsQuantity : userProductsQuantity,
       })
 
       //Sauvegarde en bdd
@@ -70,7 +72,9 @@ router.get('/signin', async function(req, res) {
           var panierCookie = await PanierModel.findOne({_id : req.cookies.cartNotConnected.panierId});
           if(panierCookie) {
             var mergeArrays = user.panier.concat(panierCookie.products);
+            var mergeProductsQuantity = user.productsQuantity.concat(panierCookie.productsQuantity);
             user.panier = mergeArrays;
+            user.productsQuantity = mergeProductsQuantity;
             user.save();
           }
           await PanierModel.deleteOne({_id : req.cookies.cartNotConnected.panierId})

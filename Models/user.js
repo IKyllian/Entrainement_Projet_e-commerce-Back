@@ -17,6 +17,7 @@ var userSchema = mongoose.Schema({
    secondaryAddress : addressSchema,
    role : String,
    panier : [{type: mongoose.Schema.Types.ObjectId, ref: 'products'}],
+   productsQuantity : [Number],
    orders : [{type: mongoose.Schema.Types.ObjectId, ref: 'orders'}],
    ateliers : [{type: mongoose.Schema.Types.ObjectId, ref: 'ateliers'}],
    comments : [{type: mongoose.Schema.Types.ObjectId, ref: 'comments'}],
