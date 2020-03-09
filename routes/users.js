@@ -6,10 +6,22 @@ var encBase64 = require("crypto-js/enc-base64");
 
 var UserModel = require('../Models/user')
 var PanierModel = require('../Models/panier')
-/* GET users listing. */
-router.get('/', function(req, res, next) {
-  res.send('respond with a resource');
-});
+
+router.post('/createAdminUser', async function(req, res) {
+  var salt = uid2(32);
+  var token = uid2(32);
+  var password = '';
+  var newAdmin = await new UserModel({
+    first_name : '',
+    last_name : '',
+    email : '',
+    salt : salt,
+    password : SHA256(password + salt).toString(encBase64), //Hashé le mot de passe 
+    token : token,
+    role : 'admin',
+  })
+})
+
 
 router.post('/signup', async function(req, res) {
     var checkUser = await UserModel.findOne({email: req.body.email}); //Check si l'email existe en bdd
@@ -21,6 +33,7 @@ router.post('/signup', async function(req, res) {
       var salt = uid2(32);
       var token = uid2(32);
       var userPanier;
+      var userProductsQuantity;
       if(req.cookies.cartNotConnected) {
         var panierCookie = await PanierModel.findOne({_id : req.cookies.cartNotConnected.panierId});
         if(panierCookie) {
@@ -41,6 +54,7 @@ router.post('/signup', async function(req, res) {
         password : SHA256(req.body.password + salt).toString(encBase64), //Hashé le mot de passe 
         token : token,
         role : 'user',
+        dateInsert : new Date(),
         panier : userPanier,
         productsQuantity : userProductsQuantity,
       })
@@ -130,7 +144,8 @@ router.get('/checkUserConnected', async function(req, res) {
 })
 
 router.get('/logout', function(req, res) {
-  res.clearCookie('userToken', {path:'/'}).send('Ok.');
+    req.session.userToken = null;
+    res.clearCookie('userToken', {path:'/'}).send('Ok.');
 })
 
 

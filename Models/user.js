@@ -13,6 +13,7 @@ var userSchema = mongoose.Schema({
    salt : String,
    password : String,
    token : String,
+   dateInsert : Date,
    homeAddress : addressSchema,
    secondaryAddress : addressSchema,
    role : String,

@@ -8,6 +8,14 @@ var OrderModel = require('../Models/order');
 var CommentModel = require('../Models/comment');
 var PanierModel = require('../Models/panier');
 
+var stripeKeys = {
+  public: "pk_test_n9MNHSqODl25K5GFwfLxbZC5007vhFerIx",
+  private: "sk_test_96yYEPoMnj2A5bX1bekdmO5o00bxbBY8t8"
+};
+
+var stripe = require("stripe")(stripeKeys.private);
+
+
 cloudinary.config({
   cloud_name:'df7gmexsk',
   api_key: 546224285817771,
@@ -26,56 +34,66 @@ async function getTotalNoteAvis(id) {
 }
 
 const catalogueProducts = [
-  {
-    name : 'Faber-Castell 110088 Set de crayons de couleur Art & Graphic',
-    description : 'Pour l\'artiste, ils sont un outil de travail représentatif, pour l\'esthète un objet de design décoratif : les coffrets élégants en bois teinté couleur wengé. L\'assortiment de base et les accessoires assortis se prêtent à chaque créatif comme outil de travail prestigieux. Un assortiment de base de crayons de couleur pour artistes et de pastels Polychromos, de crayons de couleur aquarellables Albrecht Dürer ainsi qu\'un petit assortiment de PITT Monochrome se présente sur deux niveaux',
-    prix: 160,
-    note: 0,
-    stock : 7,
-    images : ['https://images.fr.shopping.rakuten.com/photo/Faber-Castell-Set-Crayons-Couleur-1035921657_L.jpg'],
-    type : 'crayons de couleur',
-    soldNumber :0
-  },
-  {
-    name : 'Pochette feutres Pitt artist Pen Noir - Faber-Castell',
-    description : 'La gamme PITT artist pen « Brush » se décline en 60 couleurs : les couleurs claires offrent la possibilité de jouer avec les transparences, tandis que les couleurs sombres ont un pouvoir couvrant plus marqué. La pointe « pinceau B » de grande qualité permet une application douce de l’encre sur le papier. La largeur des traits varie selon l’angle et la pression exercée sur le feutre. Même une fois repliée, la pointe reste parfaitement opérationnelle et ne rompt pas. Une fois sèche, l’encre devient permanente et peut être combinée avec des crayons aquarellables.',
-    prix: 15,
-    note: 0,
-    stock : 10,
-    images : ['https://www.dalbe.fr/4184-large_default/pochette-feutres-pitt-artist-pen-noir-faber-castell.jpg'],
-    type : 'feutre',
-    soldNumber :0
-  },
-  {
-    name : 'Set de 12 + 1 Promarker',
-    description : 'Pour l\'artiste, ils sont un outil de travail représentatif, pour l\'esthète un objet de design décoratif : les coffrets élégants en bois teinté couleur wengé. L\'assortiment de base et les accessoires assortis se prêtent à chaque créatif comme outil de travail prestigieux. Un assortiment de base de crayons de couleur pour artistes et de pastels Polychromos, de crayons de couleur aquarellables Albrecht Dürer ainsi qu\'un petit assortiment de PITT Monochrome se présente sur deux niveaux',
-    prix: 160,
-    note: 0,
-    stock : 7,
-    images : ['https://images-eu.ssl-images-amazon.com/images/I/51WXjhWDSVL._SL500_AC_SS350_.jpg'],
-    type : 'marqueur',
-    soldNumber :0
-  },
-  {
-    name : 'Canson - Pochette de 12 feuilles de papier dessin CA GRAIN 180g - 24x32cm',
-    description : 'La pochette Canson "C" à grain propose un papier dessin blanc grain fin unique. Déclinée en 3 grammages, ce papier est idéal pour le dessin réalisé au crayon de papier, crayon de couleur ou feutre mais également pour le travail à l\'encre ou à la gouache. ',
-    prix: '6',
-    note: '0',
-    stock : '15',
-    images : ['https://fr.canson.com/sites/default/files/pochette-cagrain-1.jpg'],
-    type : 'papier',
-    soldNumber :0
-  },
-  {
-    name : 'Papier peinture blanc naturel, 370g/m² en 24x32cm - Pochette de 6 feuille',
-    description : 'Pochette 6 feuilles dessins blanc naturel, 370g/m² en 24x32cm Grain léger, ne gondole pas, idéal pour la peinture (gouache, acrylique, aquarelle, encre) ',
-    prix: '5',
-    note: '0',
-    stock : '0',
-    images : ['https://www.lacentraledubureau.com/images/products/30896.jpg'],
-    type : 'papier',
-    soldNumber :0
-  },
+  // {
+  //   name : 'Faber-Castell 110088 Set de crayons de couleur Art & Graphic',
+  //   description : 'Pour l\'artiste, ils sont un outil de travail représentatif, pour l\'esthète un objet de design décoratif : les coffrets élégants en bois teinté couleur wengé. L\'assortiment de base et les accessoires assortis se prêtent à chaque créatif comme outil de travail prestigieux. Un assortiment de base de crayons de couleur pour artistes et de pastels Polychromos, de crayons de couleur aquarellables Albrecht Dürer ainsi qu\'un petit assortiment de PITT Monochrome se présente sur deux niveaux',
+  //   prix: 160,
+  //   note: 0,
+  //   stock : 7,
+  //   images : ['https://images.fr.shopping.rakuten.com/photo/Faber-Castell-Set-Crayons-Couleur-1035921657_L.jpg'],
+  //   type : 'crayons de couleur',
+  //   soldNumber :0
+  // },
+  // {
+  //   name : 'Pochette feutres Pitt artist Pen Noir - Faber-Castell',
+  //   description : 'La gamme PITT artist pen « Brush » se décline en 60 couleurs : les couleurs claires offrent la possibilité de jouer avec les transparences, tandis que les couleurs sombres ont un pouvoir couvrant plus marqué. La pointe « pinceau B » de grande qualité permet une application douce de l’encre sur le papier. La largeur des traits varie selon l’angle et la pression exercée sur le feutre. Même une fois repliée, la pointe reste parfaitement opérationnelle et ne rompt pas. Une fois sèche, l’encre devient permanente et peut être combinée avec des crayons aquarellables.',
+  //   prix: 15,
+  //   note: 0,
+  //   stock : 10,
+  //   images : ['https://www.dalbe.fr/4184-large_default/pochette-feutres-pitt-artist-pen-noir-faber-castell.jpg'],
+  //   type : 'feutre',
+  //   soldNumber :0
+  // },
+  // {
+  //   name : 'Set de 12 + 1 Promarker',
+  //   description : 'Pour l\'artiste, ils sont un outil de travail représentatif, pour l\'esthète un objet de design décoratif : les coffrets élégants en bois teinté couleur wengé. L\'assortiment de base et les accessoires assortis se prêtent à chaque créatif comme outil de travail prestigieux. Un assortiment de base de crayons de couleur pour artistes et de pastels Polychromos, de crayons de couleur aquarellables Albrecht Dürer ainsi qu\'un petit assortiment de PITT Monochrome se présente sur deux niveaux',
+  //   prix: 160,
+  //   note: 0,
+  //   stock : 7,
+  //   images : ['https://images-eu.ssl-images-amazon.com/images/I/51WXjhWDSVL._SL500_AC_SS350_.jpg'],
+  //   type : 'marqueur',
+  //   soldNumber :0
+  // },
+  // {
+  //   name : 'Canson - Pochette de 12 feuilles de papier dessin CA GRAIN 180g - 24x32cm',
+  //   description : 'La pochette Canson "C" à grain propose un papier dessin blanc grain fin unique. Déclinée en 3 grammages, ce papier est idéal pour le dessin réalisé au crayon de papier, crayon de couleur ou feutre mais également pour le travail à l\'encre ou à la gouache. ',
+  //   prix: '6',
+  //   note: '0',
+  //   stock : '15',
+  //   images : ['https://fr.canson.com/sites/default/files/pochette-cagrain-1.jpg'],
+  //   type : 'papier',
+  //   soldNumber :0
+  // },
+  // {
+  //   name : 'Papier peinture blanc naturel, 370g/m² en 24x32cm - Pochette de 6 feuille',
+  //   description : 'Pochette 6 feuilles dessins blanc naturel, 370g/m² en 24x32cm Grain léger, ne gondole pas, idéal pour la peinture (gouache, acrylique, aquarelle, encre) ',
+  //   prix: '5',
+  //   note: '0',
+  //   stock : '0',
+  //   images : ['https://www.lacentraledubureau.com/images/products/30896.jpg'],
+  //   type : 'papier',
+  //   soldNumber :0
+  // },
+  // {
+  //   name : 'Boîte métal 12 crayons graphite CASTELL 9000 DESIGN',
+  //   description : 'Boîte métal 12 crayons graphite CASTELL 900012 duretés de mine: 2B,3B,4B,B,HB,F,H,2H,3H,4H,5H,6HDes crayons de qualité exceptionnelle, la mine est produite à partir des meilleurs graphites et argiles, collée (procédé de résistance SV), vernis écologique à l’eau, cèdre rose de Californie.Code EAN sur chaque crayon.',
+  //   prix: '15',
+  //   note: '0',
+  //   stock : '7',
+  //   images: ['https://www.rougier-ple.fr/phproduct20140204/P_74950_P_1_PRODUIT.jpg'],
+  //   type : 'crayons à papier',
+  //   soldNumber : 0
+  // },
   {
     name : 'Boîte métal 12 crayons graphite CASTELL 9000 DESIGN',
     description : 'Boîte métal 12 crayons graphite CASTELL 900012 duretés de mine: 2B,3B,4B,B,HB,F,H,2H,3H,4H,5H,6HDes crayons de qualité exceptionnelle, la mine est produite à partir des meilleurs graphites et argiles, collée (procédé de résistance SV), vernis écologique à l’eau, cèdre rose de Californie.Code EAN sur chaque crayon.',
@@ -83,9 +101,9 @@ const catalogueProducts = [
     note: '0',
     stock : '7',
     images: ['https://www.rougier-ple.fr/phproduct20140204/P_74950_P_1_PRODUIT.jpg'],
-    type : 'crayons à papier',
+    type : 'crayons de couleur',
     soldNumber : 0
-  },
+  }
 ]
 
 /* GET home page. */
@@ -128,18 +146,6 @@ router.get('/product', async function(req, res) {
       res.json({result : product, allProducts: allProducts}) //Renvoie les infos au front
     }
   }) 
-  // await ProductModel.findById({_id: req.query.id}, function(err, product) {
-  //   if(product) {
-  //     console.log(product)
-  //     CommentModel.populate({
-  //       select: 'user',
-  //       model: UserModel
-  //     }, function(err, result) {
-  //       console.log(result)
-  //     })
-  //     res.json({result : product}) //Renvoie les infos au front
-  //   }
-  // }) 
  })
 
 router.post('/addProduct', async function(req, res) {
@@ -339,43 +345,55 @@ router.post('/createOrderAddress', function(req, res) {
 router.post('/orderConfirm', async function(req, res) {
   await UserModel.findOne({token : req.body.userToken}, async function(err, user) {
     if(user) {
-      var newOrder = await new OrderModel({
-        user : user._id,
-        products : req.body.orderProducts,
-        productsQuantity : req.body.productsQuantity,
-        cost : req.body.totalOrder,
-        delivery_address : req.body.orderAddress,
-        delivery_city : req.body.orderCity,
-        delivery_zipCode : req.body.orderZipCode,
-        date_insert : new Date(),
-      })
-      await newOrder.save();
-
-      for(var i = 0; i < newOrder.products.length; i++) {
-        let currentProduct = await ProductModel.findOne({_id: newOrder.products[i]});
-        if(currentProduct) {
-          await ProductModel.updateOne({_id: newOrder.products[i]}, {soldNumber: currentProduct.soldNumber + 1});
-        }
-      }
+      (async () => {
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: req.body.totalOrder*100,
+          currency: 'eur',
+          description: `${user.first_name} ${user.last_name} | ${req.body.orderAddress} - ${req.body.orderCity} - ${req.body.orderZipCode}` ,
+          // Verify your integration in this guide by including this parameter
+          metadata: {integration_check: 'accept_a_payment'},
+        }).then(async () => {
+          var newOrder = await new OrderModel({
+            user : user._id,
+            products : req.body.orderProducts,
+            productsQuantity : req.body.productsQuantity,
+            cost : req.body.totalOrder,
+            delivery_address : req.body.orderAddress,
+            delivery_city : req.body.orderCity,
+            delivery_zipCode : req.body.orderZipCode,
+            date_insert : new Date(),
+          })
+          await newOrder.save();
     
-      await user.orders.push(newOrder._id);
-      await user.panier.splice(0, user.panier.length);
-      await user.productsQuantity.splice(0, user.productsQuantity.length);
-      await user.save();
-
-      res.clearCookie('orderCart', {path:'/'});
-      res.clearCookie('orderAddress', {path:'/'})
-
-      res.json({result: true});
+          for(var i = 0; i < newOrder.products.length; i++) {
+            let currentProduct = await ProductModel.findOne({_id: newOrder.products[i]});
+            if(currentProduct) {
+              await ProductModel.updateOne({_id: newOrder.products[i]}, {soldNumber: currentProduct.soldNumber + 1, stock: currentProduct.stock - 1});
+            }
+          }
+        
+          await user.orders.push(newOrder._id);
+          await user.panier.splice(0, user.panier.length);
+          await user.productsQuantity.splice(0, user.productsQuantity.length);
+          await user.save();
+    
+          res.clearCookie('orderCart', {path:'/'});
+          res.clearCookie('orderAddress', {path:'/'})
+    
+          res.json({result: true});
+        });
+      })();
+      
     }
   });
 })
 
-router.get('/getCookiesOrder', function(req, res) {
+router.get('/getCookiesOrder', async function(req, res) {
   if(req.cookies.orderCart && !req.cookies.orderAddress) {
     res.json({result : true, cartCookies : req.cookies.orderCart})
   } else if(req.cookies.orderCart && req.cookies.orderAddress) {
-    res.json({result : true, cartCookies : req.cookies.orderCart, addressOrderCookies : req.cookies.orderAddress})
+    var productsCart = await UserModel.findOne({token: req.query.userToken}).populate('panier')
+    res.json({result : true, cartCookies : req.cookies.orderCart, addressOrderCookies : req.cookies.orderAddress, productsCart: productsCart})
   } else {
     res.json({result : false})
   }
@@ -415,11 +433,12 @@ router.post('/addComment', async function(req, res) {
         date: new Date(),
         user : idUser,
         note : req.body.note,
-        //images : req.body.images
+        images : req.body.images
       })
       
       await product.comments.push(newComment._id);
       var getCurrentNotes = 0;
+      //Permet de récuperer e total des notes du produit
       if(product.comments.length > 0) {
         for(var i = 0; i < product.comments.length; i++) {
           if(product.comments[i].note) {
