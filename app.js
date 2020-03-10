@@ -1,5 +1,4 @@
 require('./Models/bdd');
-var fileUpload = require('express-fileupload');
 var createError = require('http-errors');
 var express = require('express');
 var path = require('path');
@@ -8,10 +7,16 @@ var logger = require('morgan');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
+var adminRouter = require('./routes/admin');
+
 var cookieParser = (require('cookie-parser'))
 var cors = require('cors')
 var session = require("express-session");
+var bodyParser = require('body-parser')
+var fileUpload = require('express-fileupload');
+
 var app = express();
+app.use(bodyParser.json({ limit: '5mb' }))
 app.use(cors({credentials: true, origin: 'http://localhost:3001'}))
 app.use(
   session({ 
@@ -21,7 +26,7 @@ app.use(
   })
  );
 app.use(cookieParser());
-
+app.use(fileUpload());
 
 
 
@@ -38,6 +43,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
+app.use('/admin', adminRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
