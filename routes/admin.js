@@ -4,6 +4,7 @@ var router = express.Router();
 var ProductModel = require('../Models/product');
 var UserModel = require('../Models/user');
 var OrderModel = require('../Models/order');
+var MessageModel = require('../Models/message');
 
 router.get('/getUsers', async function(req, res) {
    var users = await UserModel.find();
@@ -72,4 +73,37 @@ router.post('/editProduct', async function(req, res) {
         }
     })
 })
+
+
+router.get('/datasChart', async function(req, res) {
+    var aggregate1 = UserModel.aggregate();
+
+    aggregate1.group({
+        _id: {year: {$year:'$dateInsert'}, month:{ $month: '$dateInsert'}},
+        usercount: {$sum:1}  
+        });
+        aggregate1.sort({'_id.year':1,'_id.month':1})
+    var userCountByMonth = await aggregate1.exec()
+
+    var aggregate2 = OrderModel.aggregate();
+    aggregate2.group({
+        _id: {year: {$year:'$date_insert'}, month:{ $month: '$date_insert'}},
+        ordercount: {$sum:1}  
+        });
+        aggregate2.sort({'_id.year':1,'_id.month':1})
+    var orderCountByMonth = await aggregate2.exec()
+
+    res.json({userResult: userCountByMonth, orderResult: orderCountByMonth})
+})
+
+router.get('/getMessages', async function(req, res) {
+    var messages = await MessageModel.find();
+    res.json({response: messages})
+})
+
+router.get('/changeStatusMessage', async function(req, res) {
+    await MessageModel.updateOne({_id: req.query.id}, { $set : {message_is_read: true} });
+    res.json({result: true});
+})
+
 module.exports = router;

@@ -7,6 +7,8 @@ var UserModel = require('../Models/user');
 var OrderModel = require('../Models/order');
 var CommentModel = require('../Models/comment');
 var PanierModel = require('../Models/panier');
+var MessageModel = require('../Models/message');
+var NewsletterModel = require('../Models/newsletter');
 
 var stripeKeys = {
   public: "pk_test_n9MNHSqODl25K5GFwfLxbZC5007vhFerIx",
@@ -303,19 +305,23 @@ router.post('/addAddress', async function(req, res) {
         if(!user.homeAddress){
           isHomeAddress = true;
           user.homeAddress = {
+            name: req.body.name,
             address : req.body.address,
+            additional_address : req.body.additionalAddress,
             city : req.body.city,
             zipCode : req.body.zipCode
           }
         } else if(user.homeAddress || !user.secondaryAddress) {
           isHomeAddress = false;
           user.secondaryAddress = {
+            name: req.body.name,
             address : req.body.address,
+            additional_address : req.body.additionalAddress,
             city : req.body.city,
             zipCode : req.body.zipCode
           }
         }
-          
+        
          user.save()
          res.json({addHomeAddress : isHomeAddress,result: user})
       }
@@ -335,7 +341,9 @@ router.post('/createOrderCart', function(req, res) {
 
 router.post('/createOrderAddress', function(req, res) {
   res.cookie('orderAddress', { 
+    name: req.body.nameAddress,
     address : req.body.address,
+    additional_address : req.body.additionalAddress,
     city: req.body.city,
     zipCode: req.body.zipCode,
   }, {expires : new Date(Date.now() + 24 * 3600000), path:'/'}).status(200).send('Ok.');
@@ -358,17 +366,20 @@ router.post('/orderConfirm', async function(req, res) {
             products : req.body.orderProducts,
             productsQuantity : req.body.productsQuantity,
             cost : req.body.totalOrder,
+            delivery_name : req.body.orderNameAddress,
             delivery_address : req.body.orderAddress,
+            delivery_additional_address : req.body.orderAdditionalAddress,
             delivery_city : req.body.orderCity,
             delivery_zipCode : req.body.orderZipCode,
             date_insert : new Date(),
+            status: 'Waiting'
           })
           await newOrder.save();
     
           for(var i = 0; i < newOrder.products.length; i++) {
             let currentProduct = await ProductModel.findOne({_id: newOrder.products[i]});
             if(currentProduct) {
-              await ProductModel.updateOne({_id: newOrder.products[i]}, {soldNumber: currentProduct.soldNumber + 1, stock: currentProduct.stock - 1});
+              await ProductModel.updateOne({_id: newOrder.products[i]}, {soldNumber: currentProduct.soldNumber + 1, stock: currentProduct.stock - newOrder.productsQuantity[i]});
             }
           }
         
@@ -483,8 +494,8 @@ router.post('/deleteAddress', async function(req, res) {
 router.post('/editAddress', async function(req, res) {
   await UserModel.updateOne({token : req.body.userToken},
     req.body.addressNumber === 1 ?
-      {homeAddress: {address : req.body.address, city : req.body.city, zipCode : req.body.zipCode}} :
-      {secondaryAddress: {address : req.body.address, city : req.body.city, zipCode : req.body.zipCode}}
+      {homeAddress: {name : req.body.name, address : req.body.address, additional_address : req.body.additionalAddress, city : req.body.city, zipCode : req.body.zipCode}} :
+      {secondaryAddress: {name : req.body.name, address : req.body.address, additional_address : req.body.additionalAddress, city : req.body.city, zipCode : req.body.zipCode}}
   )
   await UserModel.findOne({token: req.body.userToken}, function(err, user) {
     if(user) {
@@ -497,6 +508,47 @@ router.post('/editAddress', async function(req, res) {
       res.json({result : user, wichAddress : wichAddress});
     }
   })
+})
+
+
+router.post('/sendContactMessage', async function(req, res) {
+  var newMessage = await new MessageModel({
+    name: req.body.name,
+    email: req.body.email,
+    title: req.body.sujet,
+    message: req.body.message,
+    date_send: new Date(),
+    message_is_read: false
+  })
+
+  await newMessage.save();
+  await MessageModel.findOne({_id: newMessage._id}, function(err, message) {
+    if(message) {
+      res.json({response: true})
+    } else {
+      res.json({response: false})
+    }
+  })
+})
+
+router.post('/newsletterRegister', async function(req, res) {
+  var checkEmail = await NewsletterModel.findOne({email: req.body.email});
+  if(checkEmail) {
+    res.json({register: false, errorEmail: true});
+  } else {
+    var newRegister = await new NewsletterModel({
+      email: req.body.email,
+      date_insert: new Date(),
+     })
+     await newRegister.save();
+     await NewsletterModel.findOne({_id: newRegister._id}, function(err, newRegister) {
+       if(newRegister) {
+         res.json({register: true});
+       } else {
+        res.json({register: false, errorEmail: false});
+       }
+     })
+  }
 })
 
 module.exports = router;

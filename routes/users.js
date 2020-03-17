@@ -4,22 +4,100 @@ var uid2 = require("uid2");
 var SHA256 = require("crypto-js/sha256");
 var encBase64 = require("crypto-js/enc-base64");
 
-var UserModel = require('../Models/user')
-var PanierModel = require('../Models/panier')
+var UserModel = require('../Models/user');
+var PanierModel = require('../Models/panier');
+
+
+const arrayBackground = [
+  '#f56a00',
+  '#7265e6',
+  '#ffbf00',
+  '#00a2ae',
+  '#22e8e8',
+  '#3d79d3',
+  '#d639a7'
+];
+
+function getRandomInt(max) {
+  return Math.floor(Math.random() * Math.floor(max));
+}
+
+const usersGenerator = [
+  {
+    first_name : 'Maury',
+    last_name : 'Richard',
+    email : 'richard@gmail.com',
+    dateInsert: new Date('2020-01-03'),
+    role : 'user',
+  },
+  {
+    first_name : 'Navarro',
+    last_name : 'Pauline',
+    email : 'pauline@gmail.com',
+    dateInsert: new Date('2020-01-11'),
+    role : 'user',
+  },
+  {
+    first_name : 'Nguyen',
+    last_name : 'Hélène',
+    email : 'hélène@gmail.com',
+    dateInsert: new Date('2020-01-20'),
+    role : 'user',
+  },
+  {
+    first_name : 'Guyon',
+    last_name : 'Alice',
+    email : 'alice@gmail.com',
+    dateInsert: new Date('2020-02-10'),
+    role : 'user',
+  },
+  {
+    first_name : 'Chauvet',
+    last_name : 'Honoré',
+    email : 'honoré@gmail.com',
+    dateInsert: new Date('2020-02-15'),
+    role : 'user',
+  },
+]
+
+router.post('/generatorUsers', async function(req, res) {
+  for(var i = 0; i < usersGenerator.length; i++) {
+    var salt = uid2(32);
+    var token = uid2(32);
+    var newUser = await new UserModel({
+        first_name : usersGenerator[i].first_name,
+        last_name : usersGenerator[i].last_name,
+        email : usersGenerator[i].email,
+        salt : salt,
+        password : SHA256('aze' + salt).toString(encBase64), //Hashé le mot de passe 
+        token : token,
+        role : 'user',
+        dateInsert : usersGenerator[i].dateInsert,
+        panier : [],
+        productsQuantity : [],
+    })
+    await newUser.save();
+  }
+  res.json({response: 'ok'})
+})
 
 router.post('/createAdminUser', async function(req, res) {
   var salt = uid2(32);
   var token = uid2(32);
-  var password = '';
+  var password = 'aze';
   var newAdmin = await new UserModel({
-    first_name : '',
-    last_name : '',
-    email : '',
+    first_name : 'Admin',
+    last_name : 'kyllian',
+    email : 'adminKD@gmail.com',
     salt : salt,
     password : SHA256(password + salt).toString(encBase64), //Hashé le mot de passe 
-    token : token,
     role : 'admin',
+    token: token,
+    panier : [],
+    productsQuantity : [],
   })
+  await newAdmin.save();
+  res.send('ok');
 })
 
 
@@ -45,10 +123,12 @@ router.post('/signup', async function(req, res) {
       } else {
         userPanier = undefined;
       }
+      var newFirstName = req.body.first_name.charAt(0).toUpperCase() + req.body.first_name.slice(1)
+      var newLastName = req.body.last_name.charAt(0).toUpperCase() + req.body.last_name.slice(1)
       //Création du user dans la bdd
       var newUser = await new UserModel({
-        first_name : req.body.first_name,
-        last_name : req.body.last_name,
+        first_name : newFirstName,
+        last_name : newLastName,
         email : req.body.email,
         salt : salt,
         password : SHA256(req.body.password + salt).toString(encBase64), //Hashé le mot de passe 
@@ -57,6 +137,7 @@ router.post('/signup', async function(req, res) {
         dateInsert : new Date(),
         panier : userPanier,
         productsQuantity : userProductsQuantity,
+        background_profil: arrayBackground[getRandomInt(arrayBackground.length - 1)],
       })
 
       //Sauvegarde en bdd
@@ -94,18 +175,18 @@ router.get('/signin', async function(req, res) {
           await PanierModel.deleteOne({_id : req.cookies.cartNotConnected.panierId})
           res.clearCookie('cartNotConnected', {path:'/'});
           //Permet de savoir si le user veut rester connecter ou non
-          if(req.query.stayConnected !== false) {
-            res.cookie('userToken', user.token, {path:'/'}).status(200);
-          } else {
+          if(req.query.stayConnected === 'false') {
             req.session.userToken = user.token;
+          } else {
+            res.cookie('userToken', user.token, {path:'/'}).status(200);
           }
           res.json({userExist: true, user: user})
         } else {
           //Permet de savoir si le user veut rester connecter ou non
-          if(req.query.stayConnected !== false) {
-            res.cookie('userToken', user.token, {path:'/'}).status(200);
-          } else {
+          if(req.query.stayConnected === 'false') {
             req.session.userToken = user.token;
+          } else {
+            res.cookie('userToken', user.token, {path:'/'}).status(200);
           }
           res.json({userExist: true, user: user})
         }
@@ -128,6 +209,7 @@ router.get('/checkUserConnected', async function(req, res) {
   } else if(req.session.userToken) {
     checkUser = await UserModel.findOne({token: req.session.userToken}).populate('panier');
   }
+  
   if(checkUser) {
     res.json({userConnected: true, user: checkUser});
   } else {
