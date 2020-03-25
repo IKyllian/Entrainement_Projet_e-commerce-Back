@@ -141,16 +141,17 @@ router.post('/signup', async function(req, res) {
       })
 
       //Sauvegarde en bdd
-      await newUser.save();
-
-      if(req.body.stayConnected !== false) {
-        res.cookie('userToken', token, {path:'/'}).status(200);
-      } else {
-        req.session.userToken = token;
-      }
-
-      //Renvoie les informations au front
-      res.json({result: newUser, validLog: true});
+      await newUser.save(err => {
+        if(err) {
+          res.json({result: false, validLog: true});
+        } else {
+          if(req.body.stayConnected !== false) {
+            res.cookie('userToken', token, {path:'/'}).status(200);
+          } else {
+            req.session.userToken = token;
+          }
+        }
+      }); 
     }
 })
 
@@ -203,6 +204,7 @@ router.get('/signin', async function(req, res) {
 })
 
 router.get('/checkUserConnected', async function(req, res) {
+  //Check si un token est enregistrer dans les cookies ou dans la session
   var checkUser;
   if(req.cookies.userToken) {
     checkUser = await UserModel.findOne({token: req.cookies.userToken}).populate('panier');

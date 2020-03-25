@@ -24,17 +24,6 @@ cloudinary.config({
   api_secret:'RCQbomAFlDXCqiHiqlU1wueF3b8'
 });
 
-async function getTotalNoteAvis(id) {
-  await ProductModel.findOne({_id: id}).populate('comments').exec(function(err, product) {
-    if(product) {
-      console.log('product',product)
-      
-      console.log('total', total);
-      return total;
-    }
-  })
-}
-
 const catalogueProducts = [
   // {
   //   name : 'Faber-Castell 110088 Set de crayons de couleur Art & Graphic',
@@ -115,7 +104,7 @@ router.get('/getProductsHome', async function(req, res) {
 });
 
 //Route qui permet d'inserer des produits en bdd
-router.post('/addProducts', async function(req, res, next) {
+router.post('/addProducts', async function(req, res) {
   for(var i = 0; i < catalogueProducts.length; i++) {
     var newProduct = await new ProductModel({
       name : catalogueProducts[i].name,
@@ -146,14 +135,16 @@ router.get('/product', async function(req, res) {
     if(product) {
       var allProducts = await ProductModel.find();
       res.json({result : product, allProducts: allProducts}) //Renvoie les infos au front
+    } else {
+      res.json({result : false})
     }
   }) 
  })
 
 router.post('/addProduct', async function(req, res) {
-  console.log('Execute')
     await UserModel.findOne({token: req.body.userToken}, async function(err, user) {
       if(user) {
+        // Check si le produit existe déjà dans le panier
         var productAlreadyExist = false;
         var indexOfProduct;
         for(var i = 0; i < user.panier.length; i++) {
@@ -163,16 +154,24 @@ router.post('/addProduct', async function(req, res) {
             break;
           }
         }
-
         if(productAlreadyExist) {
+          //Si oui, modifie juste la quantité du produit
           var currentQuantity = user.productsQuantity[indexOfProduct]
-          await UserModel.updateOne({_id: user._id}, { $set : { [`productsQuantity.${indexOfProduct}`]: currentQuantity + 1 }});
-          res.json({productExist: true, indexProduct: indexOfProduct});
+          await UserModel.updateOne({_id: user._id}, { $set : { [`productsQuantity.${indexOfProduct}`]: currentQuantity + 1 }}).then(result => {
+            if(result && result.nModified === 1) {
+              res.json({saveSuccess : true, productExist: true, indexProduct: indexOfProduct});
+            } else {
+              res.json({saveSuccess : false});
+            }
+          });
         } else {
+           //Sinon, ajoute le produit dans le panier
           user.panier.push(req.body.idProduct);
           user.productsQuantity.push(1);
-          user.save();
-          res.json({productExist: false})
+          await user.save(err => {
+            //Check si le produit a bien été ajouté => Si non renvoie false au front pour pop une alerte
+            err ? res.json({saveSuccess : false}) : res.json({saveSuccess : true, productExist: false});
+          }); 
         }
       }
     })
@@ -180,8 +179,10 @@ router.post('/addProduct', async function(req, res) {
 
 router.get('/addProductCookie', async function(req, res) {
   await ProductModel.findOne({_id: req.query.idProduct}, async function(err, product) {
+    //Check si le produit existe
     if(product) {
       if(!req.cookies.cartNotConnected) {
+        //Si aucun cookie n'est enregistrer crée un panieren bdd et crée un cookie stockant l'id de celui-ci 
         var newPanier = await new PanierModel({
           products: req.query.idProduct,
           productsQuantity: [1]
@@ -190,8 +191,10 @@ router.get('/addProductCookie', async function(req, res) {
         res.cookie('cartNotConnected', {panierId: newPanier._id},
           {path:'/'}).send('Ok.');
       } else {
+        //Si un cookie est deja crée va chercher le panier 
         await PanierModel.findOne({_id: req.cookies.cartNotConnected.panierId}, async function(err, panier){
           if(panier) {
+            // Check si le produit existe déjà dans le panier
             var productAlreadyExist = false;
             var indexOfProduct;
             for(var i = 0; i < panier.products.length; i++) {
@@ -203,14 +206,18 @@ router.get('/addProductCookie', async function(req, res) {
             }
 
             if(productAlreadyExist) {
+              //Si oui, modifie juste la quantité du produit
               var currentQuantity = panier.productsQuantity[indexOfProduct]
               await PanierModel.updateOne({_id: panier._id}, { $set : { [`productsQuantity.${indexOfProduct}`]: currentQuantity + 1 }});
               res.json({productExist: true, indexProduct: indexOfProduct});
             } else {
+              //Sinon, ajoute le produit dans le panier
               panier.products.push(req.query.idProduct);
               panier.productsQuantity.push(1);
-              panier.save();
-              res.json({productExist: false})
+              panier.save(err => {
+                //Check si le produit a bien été ajouté => Si non renvoie false au front pour pop une alerte
+                err ? res.json({saveSuccess : false}) : res.json({saveSuccess : true, productExist: false});
+              });          
             }
           }
         })
@@ -221,41 +228,44 @@ router.get('/addProductCookie', async function(req, res) {
 
 router.post('/changeProductQuantity', async function(req, res) {
   if(req.body.userToken == undefined) {
+    //Si user est deconnecté change la quantité dans le panier enregistrer dans les cookies
     if(req.cookies.cartNotConnected) {
-      await PanierModel.updateOne({_id: req.cookies.cartNotConnected.panierId}, { $set : {[`productsQuantity.${req.body.index}`]: req.body.value }});
+      await PanierModel.updateOne({_id: req.cookies.cartNotConnected.panierId}, { $set : {[`productsQuantity.${req.body.index}`]: req.body.value }}).then(result => {
+        //Check si la valeur a bien changé
+        if(result && result.nModified === 1) {
+          res.json({result: true})
+        } else {
+          res.json({result: false})
+        }
+      });
     }
   } else {
-    await UserModel.updateOne({token: req.body.userToken}, { $set : {[`productsQuantity.${req.body.index}`]: req.body.value }});
-  }
-  res.json({result: true})
-})
-
-router.get('/dataHeaderPanier', async function(req, res) {
-    await UserModel.findOne({token: req.query.userToken}).populate('panier').exec(async function(err, user) {
-      if(user) {
-        res.json({result: user})
+    //Si connecté, change dans le panier user
+    await UserModel.updateOne({token: req.body.userToken}, { $set : {[`productsQuantity.${req.body.index}`]: req.body.value }}).then(result => {
+      //Check si la valeur a bien changé
+      if(result && result.nModified === 1) {
+        res.json({result: true})
       } else {
-        if(req.cookies.cartNotConnected) {
-          await PanierModel.findOne({_id : req.cookies.cartNotConnected.panierId}).populate('products').exec(function(err, panier){
-            if(panier) {
-              res.json({cookie: panier});   
-            }
-          })
-        } else {
-          res.json({response: false})
-        }
+        res.json({result: false})
       }
     });
+  }
+  
 })
 
 router.get('/getUserPanier', async function(req, res) {
+  //Récupere le token du user
   await UserModel.findOne({token: req.query.userToken}).populate('panier').exec(async function(err, userDatas) {
     if(userDatas) {
+      //Si le user est connecté, renvoie le panier user
       res.json({result: userDatas});
     } else if(req.cookies.cartNotConnected) {
+      //Si le user est deconnecté, renvoie le panier enregistrer dans les cookies
       await PanierModel.findOne({_id : req.cookies.cartNotConnected.panierId}).populate('products').exec(function(err, panier){
         if(panier) {
           res.json({cookie: panier});   
+        } else {
+          res.json({response :false})
         }
       })
     } else {
@@ -267,28 +277,49 @@ router.get('/getUserPanier', async function(req, res) {
 router.post('/deleteProduct', async function(req, res) {
     await UserModel.findOne({token: req.body.userToken}).populate('panier').exec(async function(err, user) {
       if(user) {
+        //Check si la quantité du produit est superieur a 1
         if(user.productsQuantity[req.body.positionProduct] <= 1) {
+          //Si non, supprime le produit et la quantité du panier
           user.panier.splice(req.body.positionProduct, 1);
           user.productsQuantity.splice(req.body.positionProduct, 1);
-          user.save()
-          res.json({result : user, productDelete: true});
+          user.save(err => {
+            err ? res.json({errDelete : true}) : res.json({result : user, productDelete: true});
+          });
         } else {
+          //Si oui, modifie la quantité du produit dans le panier
           var currentQuantity = user.productsQuantity[req.body.positionProduct]
-          await UserModel.updateOne({_id: user._id}, {$set : {[`productsQuantity.${req.body.positionProduct}`]: currentQuantity - 1 }});
-          res.json({result : user, productDelete: false});
+          await UserModel.updateOne({_id: user._id}, {$set : {[`productsQuantity.${req.body.positionProduct}`]: currentQuantity - 1 }}).then(result => {
+            if(result && result.nModified === 1) {
+              //Check si la mise a jour a réussie
+              res.json({result : user, productDelete: false});
+            } else {
+              res.json({errDelete : true})
+            }
+          });
         }
       } else if(req.cookies.cartNotConnected) {
         await PanierModel.findOne({_id: req.cookies.cartNotConnected.panierId}).populate('products').exec(async function(err, panier) {
           if(panier) {
+            //Check si la quantité du produit est superieur a 1
             if(panier.productsQuantity[req.body.positionProduct] <= 1) {
+              //Si non, supprime le produit et la quantité du panier
               panier.products.splice(req.body.positionProduct, 1);
               panier.productsQuantity.splice(req.body.positionProduct, 1);
-              panier.save()
+              panier.save(err => {
+                err ? res.json({errDelete : true}) : res.json({resultCookie : panier, productDelete: true});
+              })
               res.json({resultCookie : panier, productDelete: true});
             } else {
+              //Si oui, modifie la quantité du produit dans le panier
               var currentQuantity = panier.productsQuantity[req.body.positionProduct]
-              await PanierModel.updateOne({_id: panier._id}, {$set : {[`productsQuantity.${req.body.positionProduct}`]: currentQuantity - 1 }});
-              res.json({resultCookie : panier, productDelete: false});
+              await PanierModel.updateOne({_id: panier._id}, {$set : {[`productsQuantity.${req.body.positionProduct}`]: currentQuantity - 1 }}).then(result => {
+                if(result && result.nModified === 1) {
+                  //Check si la mise a jour a réussie
+                  res.json({resultCookie : panier, productDelete: false});
+                } else {
+                  res.json({errDelete : true})
+                }
+              });
             }
           }
         })
@@ -321,14 +352,15 @@ router.post('/addAddress', async function(req, res) {
             zipCode : req.body.zipCode
           }
         }
-        
-         user.save()
-         res.json({addHomeAddress : isHomeAddress,result: user})
+         user.save(err => {
+           err ? res.json({errAdd : true}) : res.json({addHomeAddress : isHomeAddress,result: user})
+         })
       }
     })
 })
 
 router.post('/createOrderCart', function(req, res) {
+  //Crée un cookie qui contient le panier du user a la validation du panier
   res.cookie('orderCart', { 
     products : req.body.products,
     productsQuantity: req.body.productsQuantity,
@@ -340,6 +372,7 @@ router.post('/createOrderCart', function(req, res) {
 })
 
 router.post('/createOrderAddress', function(req, res) {
+  //Crée un cookie qui contient l'adresse de livraison de la commande
   res.cookie('orderAddress', { 
     name: req.body.nameAddress,
     address : req.body.address,
@@ -349,11 +382,11 @@ router.post('/createOrderAddress', function(req, res) {
   }, {expires : new Date(Date.now() + 24 * 3600000), path:'/'}).status(200).send('Ok.');
 })
 
-
 router.post('/orderConfirm', async function(req, res) {
   await UserModel.findOne({token : req.body.userToken}, async function(err, user) {
     if(user) {
       (async () => {
+        //Paiement Stripe
         const paymentIntent = await stripe.paymentIntents.create({
           amount: req.body.totalOrder*100,
           currency: 'eur',
@@ -361,6 +394,7 @@ router.post('/orderConfirm', async function(req, res) {
           // Verify your integration in this guide by including this parameter
           metadata: {integration_check: 'accept_a_payment'},
         }).then(async () => {
+          //Crée une nouvelle commande
           var newOrder = await new OrderModel({
             user : user._id,
             products : req.body.orderProducts,
@@ -374,32 +408,42 @@ router.post('/orderConfirm', async function(req, res) {
             date_insert : new Date(),
             status: 'Waiting'
           })
-          await newOrder.save();
-    
-          for(var i = 0; i < newOrder.products.length; i++) {
-            let currentProduct = await ProductModel.findOne({_id: newOrder.products[i]});
-            if(currentProduct) {
-              await ProductModel.updateOne({_id: newOrder.products[i]}, {soldNumber: currentProduct.soldNumber + 1, stock: currentProduct.stock - newOrder.productsQuantity[i]});
+          await newOrder.save(async err => {
+            if(err) {
+              res.json({result: false});
+            } else {
+              //Permet pour chaque produit commandé de modifier son stock et le nombre de fois commandé en bdd
+              for(var i = 0; i < newOrder.products.length; i++) {
+                let currentProduct = await ProductModel.findOne({_id: newOrder.products[i]});
+                if(currentProduct) {
+                  await ProductModel.updateOne({_id: newOrder.products[i]}, {soldNumber: currentProduct.soldNumber + 1, stock: currentProduct.stock - newOrder.productsQuantity[i]});
+                }
+              }
+              //Push dans le user l'id de la commande et vide le panier et panierQuantity
+              await user.orders.push(newOrder._id);
+              await user.panier.splice(0, user.panier.length);
+              await user.productsQuantity.splice(0, user.productsQuantity.length);
+              await user.save(err => {
+                if(err) {
+                  res.json({result: false});
+                } else {
+                  //Clear les cookies de commande
+                  res.clearCookie('orderCart', {path:'/'});
+                  res.clearCookie('orderAddress', {path:'/'})
+
+                  res.json({result: true});
+                }
+              });
             }
-          }
-        
-          await user.orders.push(newOrder._id);
-          await user.panier.splice(0, user.panier.length);
-          await user.productsQuantity.splice(0, user.productsQuantity.length);
-          await user.save();
-    
-          res.clearCookie('orderCart', {path:'/'});
-          res.clearCookie('orderAddress', {path:'/'})
-    
-          res.json({result: true});
+          });         
         });
       })();
-      
     }
   });
 })
 
 router.get('/getCookiesOrder', async function(req, res) {
+  //Permet de récuperer les infos de la commande via les cookies
   if(req.cookies.orderCart && !req.cookies.orderAddress) {
     res.json({result : true, cartCookies : req.cookies.orderCart})
   } else if(req.cookies.orderCart && req.cookies.orderAddress) {
@@ -411,45 +455,24 @@ router.get('/getCookiesOrder', async function(req, res) {
 })
 
 router.post('/addComment', async function(req, res) {
-  var idUser;
   var user = await UserModel.findOne({token: req.body.userToken});
 
-  // var randomName = Math.floor(Math.random() * 1000000)
-  // var photoPath = `public/images/picture-${randomName}.jpg`;
-
-  // req.files.photo.mv(photoPath,
-  //   function(err) {
-  //     cloudinary.v2.uploader.upload(photoPath,
-  //       function(error, result){
-  //         if(result){
-
-  //           console.log('This the result -->',result)
-          
-  //         } else {
-
-  //           console.log('this is the error --->',error)
-  //           res.json({result: false, message: 'File not uploaded!'} );
-
-  //         }
-  //       })
-  // })
-
-
-  idUser = user._id;
   await ProductModel.findOne({_id: req.body.idProduct}).populate({path: 'comments', populate: { path: 'user', model : UserModel}}).exec(async function(err, product) {
     if(product) {
+      //Crée un nouveau commentaire
       var newComment = await new CommentModel({
         title: req.body.title,
         message: req.body.message,
         date: new Date(),
-        user : idUser,
+        user : user._id,
         note : req.body.note,
         images : req.body.images
       })
       
+      //Push l'id du commentaire dans le produit en bdd
       await product.comments.push(newComment._id);
       var getCurrentNotes = 0;
-      //Permet de récuperer e total des notes du produit
+      //Permet de récuperer le total des notes du produit
       if(product.comments.length > 0) {
         for(var i = 0; i < product.comments.length; i++) {
           if(product.comments[i].note) {
@@ -457,25 +480,41 @@ router.post('/addComment', async function(req, res) {
           }
         }
       }
+      //Modifie la note du produit en prenant en compte la nouvelle note ajoutée
       var total = getCurrentNotes + req.body.note
       let newNote = total / product.comments.length;
       await ProductModel.updateOne({_id: req.body.idProduct}, {note: newNote});
 
+      //Push l'id du commentaire dans le user
       await user.comments.push(newComment._id);
 
-      await newComment.save();
-      await product.save()
-      await user.save();
-
-      res.json({result : product})
+      //Check si tout a été enregistrer correctement
+      await newComment.save(async err => {
+        if(err) {
+          res.json({result : false})
+        } else {
+          await product.save(async err => {
+            if(err) {
+              res.json({result : false})
+            } else {
+              await user.save(async err => {
+                if(err) {
+                  res.json({result : false})
+                } else {
+                  res.json({result : true})
+                }
+              });
+            }
+          });
+        }
+      });
     }
   })
 })
 
-
 router.get('/getUserOrders', async function(req, res) {
+  //Récupere les commandes du user
   await UserModel.findOne({token: req.query.userToken}).populate({path: 'orders', populate: {path: 'products', model : ProductModel}}).exec(function(err, user) {
-    console.log(user)
     if(user) {
       res.json({result: user});
     }
@@ -483,35 +522,40 @@ router.get('/getUserOrders', async function(req, res) {
 })
 
 router.post('/deleteAddress', async function(req, res) {
-    await UserModel.updateOne({token: req.body.userToken}, { $unset : req.body.addressNumber === 1 ? { homeAddress : 1} : { secondaryAddress : 1} });
-    await UserModel.findOne({token: req.body.userToken}, function(err, user) {
-      if(user) {
-        res.json({result : user});
+    //Supprime l'adresse du user (recoit le token du user et adresseNumber(si adresseNumber = 1 => adresse domicile, si adresseNumber = 2 => adresse secondaire) pour savoir quelle adresse supprimer)
+    await UserModel.updateOne({token: req.body.userToken}, { $unset : req.body.addressNumber === 1 ? { homeAddress : 1} : { secondaryAddress : 1} }).then(result => {
+      //Check si la suppression a bien été effectuée
+      if(result && result.nModified === 1) {
+        res.json({result : true});
+      } else {
+        res.json({result : false});
       }
-    })
+    });
 })
 
 router.post('/editAddress', async function(req, res) {
+  //Edit l'adresse du user (recoit le token du user et adresseNumber(si adresseNumber = 1 => adresse domicile, si adresseNumber = 2 => adresse secondaire) pour savoir quelle adresse editer)
   await UserModel.updateOne({token : req.body.userToken},
     req.body.addressNumber === 1 ?
       {homeAddress: {name : req.body.name, address : req.body.address, additional_address : req.body.additionalAddress, city : req.body.city, zipCode : req.body.zipCode}} :
       {secondaryAddress: {name : req.body.name, address : req.body.address, additional_address : req.body.additionalAddress, city : req.body.city, zipCode : req.body.zipCode}}
-  )
-  await UserModel.findOne({token: req.body.userToken}, function(err, user) {
-    if(user) {
-      let wichAddress;
-      if(req.body.addressNumber === 1) {
-        wichAddress = 1;
-      } else {
-        wichAddress = 2;
-      }
-      res.json({result : user, wichAddress : wichAddress});
+  ).then(async result => {
+    //check si l'update s'est bien effectué
+    if(result && result.nModified === 1) {    
+      res.json({result : true});    
+    } else {
+      res.json({result : false});
+    }
+  })
+  .catch(err => {
+    if(err) {
+      res.json({result : false, errInput: true});
     }
   })
 })
 
-
 router.post('/sendContactMessage', async function(req, res) {
+  //Crée un message
   var newMessage = await new MessageModel({
     name: req.body.name,
     email: req.body.email,
@@ -521,33 +565,28 @@ router.post('/sendContactMessage', async function(req, res) {
     message_is_read: false
   })
 
-  await newMessage.save();
-  await MessageModel.findOne({_id: newMessage._id}, function(err, message) {
-    if(message) {
-      res.json({response: true})
-    } else {
-      res.json({response: false})
-    }
-  })
+  //Save et check si le message est bien save
+  await newMessage.save(err => {
+    err ? res.json({response: false}) : res.json({response: true})
+  });
 })
 
 router.post('/newsletterRegister', async function(req, res) {
   var checkEmail = await NewsletterModel.findOne({email: req.body.email});
+  //Check si l'email existe déjà en bdd
   if(checkEmail) {
+    //Si oui, renvoie error
     res.json({register: false, errorEmail: true});
   } else {
+    //Sinon, enregistre l'email en bdd
     var newRegister = await new NewsletterModel({
       email: req.body.email,
       date_insert: new Date(),
      })
-     await newRegister.save();
-     await NewsletterModel.findOne({_id: newRegister._id}, function(err, newRegister) {
-       if(newRegister) {
-         res.json({register: true});
-       } else {
-        res.json({register: false, errorEmail: false});
-       }
-     })
+     //Save et check si l'email a bien été enregistrée
+    await newRegister.save(err => {
+      err ? res.json({register: false, errorEmail: false}) : res.json({register: true});
+    });
   }
 })
 
