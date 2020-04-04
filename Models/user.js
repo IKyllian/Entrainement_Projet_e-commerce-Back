@@ -25,6 +25,8 @@ var userSchema = mongoose.Schema({
    ateliers : [{type: mongoose.Schema.Types.ObjectId, ref: 'ateliers'}],
    comments : [{type: mongoose.Schema.Types.ObjectId, ref: 'comments'}],
    background_profil: String,
+   sold_points : Number,
+   discount_codes : [{type: mongoose.Schema.Types.ObjectId, ref: 'promoCode'}]
 })
 
 module.exports = mongoose.model('users', userSchema);

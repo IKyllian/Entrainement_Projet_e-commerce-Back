@@ -1,6 +1,7 @@
 var express = require('express');
 var router = express.Router();
 var cloudinary = require('cloudinary');
+var voucher_codes = require('voucher-code-generator');
 
 var ProductModel = require('../Models/product');
 var UserModel = require('../Models/user');
@@ -9,6 +10,7 @@ var CommentModel = require('../Models/comment');
 var PanierModel = require('../Models/panier');
 var MessageModel = require('../Models/message');
 var NewsletterModel = require('../Models/newsletter');
+var PromoCodeModel = require('../Models/promo_code');
 
 var stripeKeys = {
   public: "pk_test_n9MNHSqODl25K5GFwfLxbZC5007vhFerIx",
@@ -419,21 +421,24 @@ router.post('/orderConfirm', async function(req, res) {
                   await ProductModel.updateOne({_id: newOrder.products[i]}, {soldNumber: currentProduct.soldNumber + 1, stock: currentProduct.stock - newOrder.productsQuantity[i]});
                 }
               }
-              //Push dans le user l'id de la commande et vide le panier et panierQuantity
-              await user.orders.push(newOrder._id);
-              await user.panier.splice(0, user.panier.length);
-              await user.productsQuantity.splice(0, user.productsQuantity.length);
-              await user.save(err => {
-                if(err) {
-                  res.json({result: false});
-                } else {
-                  //Clear les cookies de commande
-                  res.clearCookie('orderCart', {path:'/'});
-                  res.clearCookie('orderAddress', {path:'/'})
 
-                  res.json({result: true});
-                }
-              });
+              var orderSoldPoints = Math.round(newOrder.cost);
+              //Push dans le user l'id de la commande et vide le panier et panierQuantity
+              await UserModel.updateOne({token : user.token},
+                {
+                  sold_points : user.sold_points + orderSoldPoints,
+                  $push : { orders: newOrder._id },
+                  panier : [ ],
+                  productsQuantity: [ ]
+                }).then(result => {
+                  if(result.nModified === 1) {
+                    res.clearCookie('orderCart', {path:'/'});
+                    res.clearCookie('orderAddress', {path:'/'})
+                    res.json({result: true});
+                  } else {
+                    res.json({result: false});
+                  }                  
+                })
             }
           });         
         });
@@ -588,6 +593,42 @@ router.post('/newsletterRegister', async function(req, res) {
       err ? res.json({register: false, errorEmail: false}) : res.json({register: true});
     });
   }
+})
+
+router.get('/createPromoCode', async function(req, res) {
+    await UserModel.findOne({token: req.query.userToken}, async function(err, user) {
+      if(user) {
+        var codeGenerated = voucher_codes.generate({
+                              length: 8,
+                              prefix: "promo-",
+                              postfix: `-${user.last_name}${user.first_name.split('')[0]}`,
+                            });
+        var newPromoCode = await new PromoCodeModel({
+          code: codeGenerated[0],
+          discount_price: 10,
+          creation_date: new Date()
+        })
+
+        await newPromoCode.save(async err => {
+          if(err) {
+            res.json({result: false})
+          } else {
+            await UserModel.updateOne({token: req.query.userToken}, {
+              $push : { discount_codes: newPromoCode._id },
+              sold_points : user.sold_points - 200
+            }).then(updateResult => {
+              if(updateResult && updateResult.nModified === 1) {
+                res.json({result: newPromoCode._id});
+              } else {
+                res.json({result: false})
+              }
+            })
+          }
+        })
+      } else {
+        res.json({result: false})
+      }
+    })
 })
 
 module.exports = router;

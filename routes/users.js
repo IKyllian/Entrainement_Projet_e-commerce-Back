@@ -60,6 +60,13 @@ const usersGenerator = [
   },
 ]
 
+router.post('/addFieldUsers', async function(req, res) {
+  await UserModel.updateMany({ }, {$set: {discount_codes : [] }}, function(err, users) {
+    //res.json(err)
+    res.json(users)
+  });
+});
+
 router.post('/generatorUsers', async function(req, res) {
   for(var i = 0; i < usersGenerator.length; i++) {
     var salt = uid2(32);
@@ -112,7 +119,9 @@ router.post('/signup', async function(req, res) {
       var token = uid2(32);
       var userPanier;
       var userProductsQuantity;
+      //Check si un panier existe dans les cookies
       if(req.cookies.cartNotConnected) {
+        //Si oui, stock le panier dans la variable userPanier.
         var panierCookie = await PanierModel.findOne({_id : req.cookies.cartNotConnected.panierId});
         if(panierCookie) {
           userPanier = panierCookie.products;
@@ -138,6 +147,8 @@ router.post('/signup', async function(req, res) {
         panier : userPanier,
         productsQuantity : userProductsQuantity,
         background_profil: arrayBackground[getRandomInt(arrayBackground.length - 1)],
+        sold_points: 0,
+        discount_codes: [],
       })
 
       //Sauvegarde en bdd
