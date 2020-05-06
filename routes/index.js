@@ -19,110 +19,17 @@ var stripeKeys = {
 
 var stripe = require("stripe")(stripeKeys.private);
 
-
 cloudinary.config({
   cloud_name:'df7gmexsk',
   api_key: 546224285817771,
   api_secret:'RCQbomAFlDXCqiHiqlU1wueF3b8'
 });
 
-const catalogueProducts = [
-  // {
-  //   name : 'Faber-Castell 110088 Set de crayons de couleur Art & Graphic',
-  //   description : 'Pour l\'artiste, ils sont un outil de travail représentatif, pour l\'esthète un objet de design décoratif : les coffrets élégants en bois teinté couleur wengé. L\'assortiment de base et les accessoires assortis se prêtent à chaque créatif comme outil de travail prestigieux. Un assortiment de base de crayons de couleur pour artistes et de pastels Polychromos, de crayons de couleur aquarellables Albrecht Dürer ainsi qu\'un petit assortiment de PITT Monochrome se présente sur deux niveaux',
-  //   prix: 160,
-  //   note: 0,
-  //   stock : 7,
-  //   images : ['https://images.fr.shopping.rakuten.com/photo/Faber-Castell-Set-Crayons-Couleur-1035921657_L.jpg'],
-  //   type : 'crayons de couleur',
-  //   soldNumber :0
-  // },
-  // {
-  //   name : 'Pochette feutres Pitt artist Pen Noir - Faber-Castell',
-  //   description : 'La gamme PITT artist pen « Brush » se décline en 60 couleurs : les couleurs claires offrent la possibilité de jouer avec les transparences, tandis que les couleurs sombres ont un pouvoir couvrant plus marqué. La pointe « pinceau B » de grande qualité permet une application douce de l’encre sur le papier. La largeur des traits varie selon l’angle et la pression exercée sur le feutre. Même une fois repliée, la pointe reste parfaitement opérationnelle et ne rompt pas. Une fois sèche, l’encre devient permanente et peut être combinée avec des crayons aquarellables.',
-  //   prix: 15,
-  //   note: 0,
-  //   stock : 10,
-  //   images : ['https://www.dalbe.fr/4184-large_default/pochette-feutres-pitt-artist-pen-noir-faber-castell.jpg'],
-  //   type : 'feutre',
-  //   soldNumber :0
-  // },
-  // {
-  //   name : 'Set de 12 + 1 Promarker',
-  //   description : 'Pour l\'artiste, ils sont un outil de travail représentatif, pour l\'esthète un objet de design décoratif : les coffrets élégants en bois teinté couleur wengé. L\'assortiment de base et les accessoires assortis se prêtent à chaque créatif comme outil de travail prestigieux. Un assortiment de base de crayons de couleur pour artistes et de pastels Polychromos, de crayons de couleur aquarellables Albrecht Dürer ainsi qu\'un petit assortiment de PITT Monochrome se présente sur deux niveaux',
-  //   prix: 160,
-  //   note: 0,
-  //   stock : 7,
-  //   images : ['https://images-eu.ssl-images-amazon.com/images/I/51WXjhWDSVL._SL500_AC_SS350_.jpg'],
-  //   type : 'marqueur',
-  //   soldNumber :0
-  // },
-  // {
-  //   name : 'Canson - Pochette de 12 feuilles de papier dessin CA GRAIN 180g - 24x32cm',
-  //   description : 'La pochette Canson "C" à grain propose un papier dessin blanc grain fin unique. Déclinée en 3 grammages, ce papier est idéal pour le dessin réalisé au crayon de papier, crayon de couleur ou feutre mais également pour le travail à l\'encre ou à la gouache. ',
-  //   prix: '6',
-  //   note: '0',
-  //   stock : '15',
-  //   images : ['https://fr.canson.com/sites/default/files/pochette-cagrain-1.jpg'],
-  //   type : 'papier',
-  //   soldNumber :0
-  // },
-  // {
-  //   name : 'Papier peinture blanc naturel, 370g/m² en 24x32cm - Pochette de 6 feuille',
-  //   description : 'Pochette 6 feuilles dessins blanc naturel, 370g/m² en 24x32cm Grain léger, ne gondole pas, idéal pour la peinture (gouache, acrylique, aquarelle, encre) ',
-  //   prix: '5',
-  //   note: '0',
-  //   stock : '0',
-  //   images : ['https://www.lacentraledubureau.com/images/products/30896.jpg'],
-  //   type : 'papier',
-  //   soldNumber :0
-  // },
-  // {
-  //   name : 'Boîte métal 12 crayons graphite CASTELL 9000 DESIGN',
-  //   description : 'Boîte métal 12 crayons graphite CASTELL 900012 duretés de mine: 2B,3B,4B,B,HB,F,H,2H,3H,4H,5H,6HDes crayons de qualité exceptionnelle, la mine est produite à partir des meilleurs graphites et argiles, collée (procédé de résistance SV), vernis écologique à l’eau, cèdre rose de Californie.Code EAN sur chaque crayon.',
-  //   prix: '15',
-  //   note: '0',
-  //   stock : '7',
-  //   images: ['https://www.rougier-ple.fr/phproduct20140204/P_74950_P_1_PRODUIT.jpg'],
-  //   type : 'crayons à papier',
-  //   soldNumber : 0
-  // },
-  {
-    name : 'Boîte métal 12 crayons graphite CASTELL 9000 DESIGN',
-    description : 'Boîte métal 12 crayons graphite CASTELL 900012 duretés de mine: 2B,3B,4B,B,HB,F,H,2H,3H,4H,5H,6HDes crayons de qualité exceptionnelle, la mine est produite à partir des meilleurs graphites et argiles, collée (procédé de résistance SV), vernis écologique à l’eau, cèdre rose de Californie.Code EAN sur chaque crayon.',
-    prix: '15',
-    note: '0',
-    stock : '7',
-    images: ['https://www.rougier-ple.fr/phproduct20140204/P_74950_P_1_PRODUIT.jpg'],
-    type : 'crayons de couleur',
-    soldNumber : 0
-  }
-]
-
 /* GET home page. */
 router.get('/getProductsHome', async function(req, res) {
   var products = await ProductModel.find()
   res.json({result: products})
 });
-
-//Route qui permet d'inserer des produits en bdd
-router.post('/addProducts', async function(req, res) {
-  for(var i = 0; i < catalogueProducts.length; i++) {
-    var newProduct = await new ProductModel({
-      name : catalogueProducts[i].name,
-      description : catalogueProducts[i].description,
-      price : catalogueProducts[i].prix,
-      note : catalogueProducts[i].note,
-      images : catalogueProducts[i].images,
-      stock : catalogueProducts[i].stock,
-      type : catalogueProducts[i].type,
-      soldNumber : catalogueProducts[i].soldNumber
-    })
-
-    await newProduct.save();
-  }
-  res.json({result : true})
-})
 
 router.get('/getProducts', async function(req, res) {
   var getProducts = await ProductModel.find(); //Va chercher tous les produits en bdd
@@ -159,13 +66,13 @@ router.post('/addProduct', async function(req, res) {
         if(productAlreadyExist) {
           //Si oui, modifie juste la quantité du produit
           var currentQuantity = user.productsQuantity[indexOfProduct]
-          await UserModel.updateOne({_id: user._id}, { $set : { [`productsQuantity.${indexOfProduct}`]: currentQuantity + 1 }}).then(result => {
-            if(result && result.nModified === 1) {
-              res.json({saveSuccess : true, productExist: true, indexProduct: indexOfProduct});
-            } else {
+          await UserModel.updateOne({_id: user._id}, { $set : { [`productsQuantity.${indexOfProduct}`]: currentQuantity + 1 }}, function(err) {
+            if(err) {
               res.json({saveSuccess : false});
+            } else {
+              res.json({saveSuccess : true, productExist: true, indexProduct: indexOfProduct});
             }
-          });
+          })
         } else {
            //Sinon, ajoute le produit dans le panier
           user.panier.push(req.body.idProduct);
@@ -184,14 +91,14 @@ router.get('/addProductCookie', async function(req, res) {
     //Check si le produit existe
     if(product) {
       if(!req.cookies.cartNotConnected) {
-        //Si aucun cookie n'est enregistrer crée un panieren bdd et crée un cookie stockant l'id de celui-ci 
+        //Si aucun cookie n'est enregistrer crée un panier en bdd et crée un cookie stockant l'id de celui-ci 
         var newPanier = await new PanierModel({
           products: req.query.idProduct,
           productsQuantity: [1]
         })
         await newPanier.save()
         res.cookie('cartNotConnected', {panierId: newPanier._id},
-          {path:'/'}).send('Ok.');
+          {path:'/'}).json({saveSuccess : true, productExist: false});
       } else {
         //Si un cookie est deja crée va chercher le panier 
         await PanierModel.findOne({_id: req.cookies.cartNotConnected.panierId}, async function(err, panier){
@@ -232,25 +139,23 @@ router.post('/changeProductQuantity', async function(req, res) {
   if(req.body.userToken == undefined) {
     //Si user est deconnecté change la quantité dans le panier enregistrer dans les cookies
     if(req.cookies.cartNotConnected) {
-      await PanierModel.updateOne({_id: req.cookies.cartNotConnected.panierId}, { $set : {[`productsQuantity.${req.body.index}`]: req.body.value }}).then(result => {
-        //Check si la valeur a bien changé
-        if(result && result.nModified === 1) {
-          res.json({result: true})
-        } else {
+      await PanierModel.updateOne({_id: req.cookies.cartNotConnected.panierId}, { $set : {[`productsQuantity.${req.body.index}`]: req.body.value }}, function(err) {
+        if(err) {
           res.json({result: false})
+        } else {
+          res.json({result: true})
         }
-      });
+      })
     }
   } else {
     //Si connecté, change dans le panier user
-    await UserModel.updateOne({token: req.body.userToken}, { $set : {[`productsQuantity.${req.body.index}`]: req.body.value }}).then(result => {
-      //Check si la valeur a bien changé
-      if(result && result.nModified === 1) {
-        res.json({result: true})
-      } else {
+    await UserModel.updateOne({token: req.body.userToken}, { $set : {[`productsQuantity.${req.body.index}`]: req.body.value }}, function(err) {
+      if(err) {
         res.json({result: false})
+      } else {
+        res.json({result: true})
       }
-    });
+    })
   }
   
 })
@@ -290,14 +195,13 @@ router.post('/deleteProduct', async function(req, res) {
         } else {
           //Si oui, modifie la quantité du produit dans le panier
           var currentQuantity = user.productsQuantity[req.body.positionProduct]
-          await UserModel.updateOne({_id: user._id}, {$set : {[`productsQuantity.${req.body.positionProduct}`]: currentQuantity - 1 }}).then(result => {
-            if(result && result.nModified === 1) {
-              //Check si la mise a jour a réussie
-              res.json({result : user, productDelete: false});
-            } else {
+          await UserModel.updateOne({_id: user._id}, {$set : {[`productsQuantity.${req.body.positionProduct}`]: currentQuantity - 1 }}, function(err) {
+            if(err) {
               res.json({errDelete : true})
+            } else {
+              res.json({result : user, productDelete: false});
             }
-          });
+          })
         }
       } else if(req.cookies.cartNotConnected) {
         await PanierModel.findOne({_id: req.cookies.cartNotConnected.panierId}).populate('products').exec(async function(err, panier) {
@@ -310,18 +214,16 @@ router.post('/deleteProduct', async function(req, res) {
               panier.save(err => {
                 err ? res.json({errDelete : true}) : res.json({resultCookie : panier, productDelete: true});
               })
-              res.json({resultCookie : panier, productDelete: true});
             } else {
               //Si oui, modifie la quantité du produit dans le panier
               var currentQuantity = panier.productsQuantity[req.body.positionProduct]
-              await PanierModel.updateOne({_id: panier._id}, {$set : {[`productsQuantity.${req.body.positionProduct}`]: currentQuantity - 1 }}).then(result => {
-                if(result && result.nModified === 1) {
-                  //Check si la mise a jour a réussie
-                  res.json({resultCookie : panier, productDelete: false});
-                } else {
+              await PanierModel.updateOne({_id: panier._id}, {$set : {[`productsQuantity.${req.body.positionProduct}`]: currentQuantity - 1 }}, function(err) {
+                if(err) {
                   res.json({errDelete : true})
+                } else {
+                  res.json({resultCookie : panier, productDelete: false});
                 }
-              });
+              })
             }
           }
         })
@@ -368,10 +270,14 @@ router.post('/createOrderCart', function(req, res) {
     productsQuantity: req.body.productsQuantity,
     totalProductsPrice: req.body.totalProductsPrice,
     totalDeliveryPrice: req.body.totalDeliveryPrice,
-    totalOrder : req.body.totalOrder
+    totalOrder : req.body.totalOrder,
+    discount: req.body.discount,
+    discountId: req.body.discountId
   }, {expires : new Date(Date.now() + 24 * 3600000), path:'/'}).status(200).send('Ok.');
 
 })
+
+
 
 router.post('/createOrderAddress', function(req, res) {
   //Crée un cookie qui contient l'adresse de livraison de la commande
@@ -389,12 +295,13 @@ router.post('/orderConfirm', async function(req, res) {
     if(user) {
       (async () => {
         //Paiement Stripe
-        const paymentIntent = await stripe.paymentIntents.create({
+        const paymentIntent = await stripe.charges.create({
           amount: req.body.totalOrder*100,
           currency: 'eur',
           description: `${user.first_name} ${user.last_name} | ${req.body.orderAddress} - ${req.body.orderCity} - ${req.body.orderZipCode}` ,
           // Verify your integration in this guide by including this parameter
           metadata: {integration_check: 'accept_a_payment'},
+          source : req.body.stripeToken.token.id, //token stripe crée en front
         }).then(async () => {
           //Crée une nouvelle commande
           var newOrder = await new OrderModel({
@@ -408,7 +315,8 @@ router.post('/orderConfirm', async function(req, res) {
             delivery_city : req.body.orderCity,
             delivery_zipCode : req.body.orderZipCode,
             date_insert : new Date(),
-            status: 'Waiting'
+            status: 'Waiting',
+            discount: req.body.discountOrder
           })
           await newOrder.save(async err => {
             if(err) {
@@ -422,23 +330,29 @@ router.post('/orderConfirm', async function(req, res) {
                 }
               }
 
+              if(req.body.discountId != null) {
+                await PromoCodeModel.deleteOne({_id: req.body.discountId});
+                await UserModel.updateOne({token : user.token}, {$pull: { discount_codes: { $in: req.body.discountId }}});
+              }
+
               var orderSoldPoints = Math.round(newOrder.cost);
-              //Push dans le user l'id de la commande et vide le panier et panierQuantity
+                //Push dans le user l'id de la commande et vide le panier et panierQuantity
               await UserModel.updateOne({token : user.token},
                 {
                   sold_points : user.sold_points + orderSoldPoints,
                   $push : { orders: newOrder._id },
                   panier : [ ],
-                  productsQuantity: [ ]
-                }).then(result => {
-                  if(result.nModified === 1) {
+                  productsQuantity: [ ],
+                }, function(err) {
+                  if(err) {
+                    res.json({result: false});
+                  } else {
                     res.clearCookie('orderCart', {path:'/'});
                     res.clearCookie('orderAddress', {path:'/'})
-                    res.json({result: true});
-                  } else {
-                    res.json({result: false});
-                  }                  
-                })
+                    res.json({result: true, userPoints: orderSoldPoints});
+                  }
+                }
+              );
             }
           });         
         });
@@ -528,14 +442,13 @@ router.get('/getUserOrders', async function(req, res) {
 
 router.post('/deleteAddress', async function(req, res) {
     //Supprime l'adresse du user (recoit le token du user et adresseNumber(si adresseNumber = 1 => adresse domicile, si adresseNumber = 2 => adresse secondaire) pour savoir quelle adresse supprimer)
-    await UserModel.updateOne({token: req.body.userToken}, { $unset : req.body.addressNumber === 1 ? { homeAddress : 1} : { secondaryAddress : 1} }).then(result => {
-      //Check si la suppression a bien été effectuée
-      if(result && result.nModified === 1) {
-        res.json({result : true});
-      } else {
+    await UserModel.updateOne({token: req.body.userToken}, { $unset : req.body.addressNumber === 1 ? { homeAddress : 1} : { secondaryAddress : 1} }, function(err) {
+      if(err) {
         res.json({result : false});
+      } else {
+        res.json({result : true});
       }
-    });
+    })
 })
 
 router.post('/editAddress', async function(req, res) {
@@ -543,16 +456,15 @@ router.post('/editAddress', async function(req, res) {
   await UserModel.updateOne({token : req.body.userToken},
     req.body.addressNumber === 1 ?
       {homeAddress: {name : req.body.name, address : req.body.address, additional_address : req.body.additionalAddress, city : req.body.city, zipCode : req.body.zipCode}} :
-      {secondaryAddress: {name : req.body.name, address : req.body.address, additional_address : req.body.additionalAddress, city : req.body.city, zipCode : req.body.zipCode}}
-  ).then(async result => {
-    //check si l'update s'est bien effectué
-    if(result && result.nModified === 1) {    
-      res.json({result : true});    
-    } else {
-      res.json({result : false});
-    }
-  })
-  .catch(err => {
+      {secondaryAddress: {name : req.body.name, address : req.body.address, additional_address : req.body.additionalAddress, city : req.body.city, zipCode : req.body.zipCode}},
+      function(err) {
+        if(err) {
+          res.json({result : false});
+        } else {
+          res.json({result : true});    
+        }
+      }
+  ).catch(err => {
     if(err) {
       res.json({result : false, errInput: true});
     }
@@ -616,19 +528,59 @@ router.get('/createPromoCode', async function(req, res) {
             await UserModel.updateOne({token: req.query.userToken}, {
               $push : { discount_codes: newPromoCode._id },
               sold_points : user.sold_points - 200
-            }).then(updateResult => {
-              if(updateResult && updateResult.nModified === 1) {
-                res.json({result: newPromoCode._id});
+            }, function(err) {
+              if(err) {
+                res.json({result: false});
               } else {
-                res.json({result: false})
+                res.json({result: newPromoCode._id});
               }
-            })
+            });
           }
         })
       } else {
         res.json({result: false})
       }
     })
+})
+
+router.get('/getUserDicountCodes', async function(req, res) {
+  await UserModel.findOne({token: req.query.userToken}).populate('discount_codes').exec(function(err, user) {
+    if(user) {
+      res.json({response: user.discount_codes});
+    } else {
+      res.json({response: false});
+    }
+  })
+})
+
+router.get('/checkPromoCode', async function(req, res) {
+  await UserModel.findOne({token: req.query.userToken}).populate('discount_codes').exec(async function(err, user) {
+    if(user) {
+      await PromoCodeModel.findOne({code: req.query.promoCode}, function(err, promoCode) {
+        //Code promo existe
+        if(promoCode) {
+          //check si le code est enregstrer dans le tableau discount_codes du user
+          var codeExistOnUser = false;
+          for(var i = 0; i < user.discount_codes.length; i++) {
+            if(`${promoCode._id}` == user.discount_codes[i]._id) {
+              codeExistOnUser = true;
+              break;
+            }
+          }
+          if(codeExistOnUser) {
+            //Si oui renvoie true au front
+            res.json({response: promoCode})
+          } else {
+            //Sinon renvoie false
+            res.json({response: false, errUserArray: true})
+          }
+        } else {
+          // Code promo n'existe pas
+          res.json({response: false, errCode: true});
+        }
+      })
+    }
+  })
 })
 
 module.exports = router;
