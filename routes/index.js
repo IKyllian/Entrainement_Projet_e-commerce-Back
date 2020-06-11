@@ -98,7 +98,7 @@ router.get('/addProductCookie', async function(req, res) {
         })
         await newPanier.save()
         res.cookie('cartNotConnected', {panierId: newPanier._id},
-          {path:'/'}).json({saveSuccess : true, productExist: false});
+          {path:'/', expires : new Date(Date.now() + 2592000000)}).json({saveSuccess : true, productExist: false});
       } else {
         //Si un cookie est deja crée va chercher le panier 
         await PanierModel.findOne({_id: req.cookies.cartNotConnected.panierId}, async function(err, panier){
@@ -526,7 +526,7 @@ router.get('/createPromoCode', async function(req, res) {
             res.json({result: false})
           } else {
             await UserModel.updateOne({token: req.query.userToken}, {
-              $push : { discount_codes: newPromoCode._id },
+              $addToSet : { discount_codes: newPromoCode._id },
               sold_points : user.sold_points - 200
             }, function(err) {
               if(err) {

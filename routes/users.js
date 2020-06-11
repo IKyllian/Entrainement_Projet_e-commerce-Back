@@ -70,10 +70,11 @@ router.post('/signup', async function(req, res) {
           res.json({result: false, validLog: true});
         } else {
           if(req.body.stayConnected !== false) {
-            res.cookie('userToken', token, {path:'/'}).status(200);
+            res.cookie('userToken', token, {path:'/', expires : new Date(Date.now() + 2592000000)}).status(200);
           } else {
             req.session.userToken = token;
           }
+          res.json({result: true, validLog: true});
         }
       }); 
     }
@@ -117,22 +118,14 @@ router.get('/signin', async function(req, res) {
           }
           await PanierModel.deleteOne({_id : req.cookies.cartNotConnected.panierId})
           res.clearCookie('cartNotConnected', {path:'/'});
-          //Permet de savoir si le user veut rester connecter ou non
-          if(req.query.stayConnected === 'false') {
-            req.session.userToken = user.token;
-          } else {
-            res.cookie('userToken', user.token, {path:'/'}).status(200);
-          }
-          res.json({userExist: true, user: user})
-        } else {
-          //Permet de savoir si le user veut rester connecter ou non
-          if(req.query.stayConnected === 'false') {
-            req.session.userToken = user.token;
-          } else {
-            res.cookie('userToken', user.token, {path:'/'}).status(200);
-          }
-          res.json({userExist: true, user: user})
         }
+        //Permet de savoir si le user veut rester connecter ou non
+        if(req.query.stayConnected === 'false') {
+          req.session.userToken = user.token;
+        } else {
+          res.cookie('userToken', user.token, {path:'/', expires : new Date(Date.now() + 2592000000)}).status(200);;
+        }
+        res.json({userExist: true, user: user})
       } else {
         res.json({userExist: false,  inputError: 'password'})
       }
@@ -153,14 +146,17 @@ router.get('/checkUserConnected', async function(req, res) {
   } else if(req.session.userToken) {
     checkUser = await UserModel.findOne({token: req.session.userToken}).populate('panier');
   }
-  
+
   if(checkUser) {
     res.json({userConnected: true, user: checkUser});
   } else {
     if(req.cookies.cartNotConnected) {
       await PanierModel.findOne({_id: req.cookies.cartNotConnected.panierId}).populate('products').exec(function(err, panier) {
         if(panier) {
-          res.json({userConnected: false, cartOnCookies : panier});
+          res.json({userConnected: false, cartOnCookies : panier})
+          ;
+        } else {
+          res.json({userConnected: false, cartOnCookies : undefined})
         }
       })
     } else {
