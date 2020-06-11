@@ -11,7 +11,8 @@ var orderSchema = mongoose.Schema({
     delivery_city : String,
     delivery_zipCode : Number,
     date_insert : Date,
-    status: String
+    status: String,
+    discount: Number
 })
 
 module.exports = mongoose.model('orders', orderSchema);

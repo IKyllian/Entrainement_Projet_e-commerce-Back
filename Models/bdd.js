@@ -1,4 +1,3 @@
-var mdp = require('../config')
 var mongoose = require('mongoose');
 
 var options = {
