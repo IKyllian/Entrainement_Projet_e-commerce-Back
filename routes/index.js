@@ -340,7 +340,7 @@ router.post('/orderConfirm', async function(req, res) {
               await UserModel.updateOne({token : user.token},
                 {
                   sold_points : user.sold_points + orderSoldPoints,
-                  $push : { orders: newOrder._id },
+                  $addToSet : { orders: newOrder._id },
                   panier : [ ],
                   productsQuantity: [ ],
                 }, function(err) {
